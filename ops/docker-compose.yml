@@ -1,0 +1,78 @@
+# ============================================================
+# Jira 小幫手 — 基礎 docker compose 設定
+# 4 個 service：frontend / backend / postgres / mcp-atlassian
+# 使用：
+#   docker compose -f ops/docker-compose.yml up
+# 開發 hot reload：
+#   docker compose -f ops/docker-compose.yml -f ops/docker-compose.dev.yml up
+# ============================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-jiracheck}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-in-production}
+      POSTGRES_DB: ${POSTGRES_DB:-jiracheck}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-jiracheck}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mcp-atlassian:
+    image: ghcr.io/sooperset/mcp-atlassian:latest
+    restart: unless-stopped
+    environment:
+      MCP_TRANSPORT: sse
+      # OAuth credentials 由 backend 在 per-user session 建立時動態注入 token；
+      # 預設先佔位（research R-002）
+      JIRA_URL: ${JIRA_URL:-}
+    expose:
+      - '9000'
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mcp-atlassian:
+        condition: service_started
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 8080
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: ${DATABASE_URL}
+      MCP_ATLASSIAN_URL: ${MCP_ATLASSIAN_URL:-http://mcp-atlassian:9000/sse}
+      ATLASSIAN_OAUTH_CLIENT_ID: ${ATLASSIAN_OAUTH_CLIENT_ID}
+      ATLASSIAN_OAUTH_CLIENT_SECRET: ${ATLASSIAN_OAUTH_CLIENT_SECRET}
+      ATLASSIAN_OAUTH_REDIRECT_URI: ${ATLASSIAN_OAUTH_REDIRECT_URI}
+      ATLASSIAN_OAUTH_SCOPES: ${ATLASSIAN_OAUTH_SCOPES}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-sonnet-4-6}
+      ANTHROPIC_FALLBACK_MODEL: ${ANTHROPIC_FALLBACK_MODEL:-claude-haiku-4-5-20251001}
+      TOKEN_ENC_KEY: ${TOKEN_ENC_KEY}
+      JIRA_FIELD_STORY_POINTS: ${JIRA_FIELD_STORY_POINTS:-customfield_10016}
+      JIRA_FIELD_ACTUAL_STORY_POINTS: ${JIRA_FIELD_ACTUAL_STORY_POINTS:-customfield_10100}
+      JIRA_FIELD_SPRINT: ${JIRA_FIELD_SPRINT:-customfield_10020}
+    ports:
+      - '8080:8080'
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - '4200:80'
+
+volumes:
+  postgres-data:

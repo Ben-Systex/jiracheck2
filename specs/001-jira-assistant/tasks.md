@@ -29,13 +29,13 @@ description: "Task list for 001-jira-assistant implementation"
 
 **Purpose**: 建立 repo 骨架，前後端可獨立 `npm install`、本機開發環境可起得來。
 
-- [ ] T001 建立目錄骨架 `backend/`、`frontend/`、`ops/`、`.github/workflows/`，並於 repo root 建立 `.editorconfig`、`.gitattributes`
-- [ ] T002 [P] 初始化 backend：`backend/package.json`、`backend/tsconfig.json`、`backend/src/app.ts` 空殼（Express 4 + TypeScript 5.4 + Node 20，依 plan.md 鎖定版本）
-- [ ] T003 [P] 初始化 frontend：以 `ng new` 產生 Angular 19 standalone 專案於 `frontend/`，整合 Tailwind CSS 3（`frontend/tailwind.config.js`）與 ng2-charts 6（`frontend/src/app/app.config.ts` 註冊 provider）
-- [ ] T004 [P] 配置共用 lint/format：`backend/.eslintrc.cjs`、`backend/.prettierrc`、`frontend/.eslintrc.json`，強制 `complexity: ["error", 10]` 與 `no-warning-comments`（憲法 I）
-- [ ] T005 [P] 建立 `ops/docker-compose.yml`、`ops/docker-compose.dev.yml`、`ops/.env.example`（依 research.md R-010 列出環境變數）
-- [ ] T006 [P] 建立 `backend/Dockerfile`、`frontend/Dockerfile`（multi-stage build；frontend 產出後以 nginx 或 angular dev server 提供）
-- [ ] T007 [P] 建立 CI workflow `.github/workflows/ci.yml`：lint → test → build → docker build；憲法 II/I 為 fail gate
+- [X] T001 建立目錄骨架 `backend/`、`frontend/`、`ops/`、`.github/workflows/`，並於 repo root 建立 `.editorconfig`、`.gitattributes`
+- [X] T002 [P] 初始化 backend：`backend/package.json`、`backend/tsconfig.json`、`backend/src/app.ts` 空殼（Express 4 + TypeScript 5.7 + Node 20+，依 plan.md 鎖定版本）
+- [X] T003 [P] 初始化 frontend：以 `ng new` 產生 Angular 19 standalone 專案於 `frontend/`，整合 Tailwind CSS 3（`frontend/tailwind.config.js`）與 ng2-charts 6（`frontend/src/app/app.config.ts` 註冊 provider）
+- [X] T004 [P] 配置共用 lint/format：`backend/eslint.config.mjs`、`backend/.prettierrc.json`、`frontend/eslint.config.js`、`frontend/.prettierrc.json`，強制 `complexity: ["error", 10]` 與 `no-warning-comments`（憲法 I）
+- [X] T005 [P] 建立 `ops/docker-compose.yml`、`ops/docker-compose.dev.yml`、`ops/.env.example`（依 research.md R-010 列出環境變數）
+- [X] T006 [P] 建立 `backend/Dockerfile`、`frontend/Dockerfile`（multi-stage build；frontend 產出後以 nginx 提供）
+- [X] T007 [P] 建立 CI workflow `.github/workflows/ci.yml`：lint → test → build → docker build；憲法 II/I 為 fail gate
 
 **Checkpoint**: `docker compose -f ops/docker-compose.yml up` 可起得來空殼服務，CI 對空 repo 跑得過 lint。
 

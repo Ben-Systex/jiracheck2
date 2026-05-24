@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+.git
+.gitignore
+.editorconfig
+.prettierignore
+.prettierrc.json
+eslint.config.mjs
+Dockerfile
+.dockerignore
+*.log
+*.env
+tests/perf/results

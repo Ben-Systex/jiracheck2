@@ -1,0 +1,30 @@
+# overlay：開發 hot reload
+# 使用：
+#   docker compose -f ops/docker-compose.yml -f ops/docker-compose.dev.yml up
+services:
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      target: dev
+    command: npm run dev
+    volumes:
+      - ../backend/src:/app/src
+      - ../backend/tests:/app/tests
+      - ../backend/tsconfig.json:/app/tsconfig.json:ro
+    environment:
+      NODE_ENV: development
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      target: dev
+    command: npx ng serve --host 0.0.0.0 --port 4200 --poll 2000
+    volumes:
+      - ../frontend/src:/app/src
+      - ../frontend/angular.json:/app/angular.json:ro
+      - ../frontend/tailwind.config.js:/app/tailwind.config.js:ro
+      - ../frontend/postcss.config.js:/app/postcss.config.js:ro
+    ports:
+      - '4200:4200'

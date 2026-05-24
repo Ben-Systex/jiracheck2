@@ -1,0 +1,21 @@
+/* Tailwind 基礎層；UI 設計系統由 src/app/ui 內各元件擴充 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 全站根樣式：依憲法 III 採系統字型 + 中文備援 */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    'PingFang TC',
+    'Noto Sans TC',
+    'Noto Sans CJK TC',
+    sans-serif;
+}
