@@ -8,8 +8,8 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/app.js",
-    "dev": "tsx watch src/app.ts",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
     "lint": "eslint \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
     "lint:fix": "eslint --fix \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
     "format": "prettier --write \"src/**/*.{ts,tsx,json,md}\" \"tests/**/*.{ts,tsx,json}\"",

@@ -1,0 +1,73 @@
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { AuthService } from '../core/auth/auth.service';
+import { I18nService } from '../core/i18n/i18n.service';
+import { ButtonComponent } from '../ui/button/button.component';
+
+@Component({
+  selector: 'app-shell',
+  standalone: true,
+  imports: [RouterLink, RouterLinkActive, RouterOutlet, ButtonComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <div class="min-h-screen bg-slate-50">
+      <header class="bg-white border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+          <a routerLink="/dashboard" class="text-lg font-semibold text-slate-900">Jira 小幫手</a>
+          <div class="flex items-center gap-3 text-sm">
+            @if (auth.me(); as me) {
+              <span class="text-slate-600">{{ me.displayName }}</span>
+              <app-button variant="ghost" size="sm" (click)="logout()">{{ i18n.t('shell_logout') }}</app-button>
+            }
+          </div>
+        </div>
+      </header>
+      <div class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-12 gap-6">
+        <nav aria-label="主要導覽" class="col-span-12 md:col-span-3 lg:col-span-2">
+          <ul class="space-y-1 text-sm">
+            <li>
+              <a
+                routerLink="/dashboard"
+                routerLinkActive="bg-blue-50 text-blue-700"
+                class="block rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
+              >{{ i18n.t('nav_dashboard') }}</a>
+            </li>
+            <li>
+              <a
+                routerLink="/nlq"
+                routerLinkActive="bg-blue-50 text-blue-700"
+                class="block rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
+              >{{ i18n.t('nav_nlq') }}</a>
+            </li>
+            <li>
+              <a
+                routerLink="/people"
+                routerLinkActive="bg-blue-50 text-blue-700"
+                class="block rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
+              >{{ i18n.t('nav_people') }}</a>
+            </li>
+            <li>
+              <a
+                routerLink="/bulk"
+                routerLinkActive="bg-blue-50 text-blue-700"
+                class="block rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
+              >{{ i18n.t('nav_bulk_update') }}</a>
+            </li>
+          </ul>
+        </nav>
+        <main class="col-span-12 md:col-span-9 lg:col-span-10">
+          <router-outlet />
+        </main>
+      </div>
+    </div>
+  `,
+})
+export class ShellComponent {
+  protected readonly auth = inject(AuthService);
+  protected readonly i18n = inject(I18nService);
+
+  async logout(): Promise<void> {
+    await this.auth.logout();
+    window.location.href = '/login';
+  }
+}

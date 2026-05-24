@@ -1,17 +1,18 @@
 import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
 import { provideRouter } from '@angular/router';
-import { provideHttpClient, withFetch, withInterceptorsFromDi } from '@angular/common/http';
+import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/http';
 import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 
 import { routes } from './app.routes';
+import { authInterceptor } from './core/http/auth.interceptor';
+import { problemErrorInterceptor } from './core/http/problem.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
-    provideHttpClient(withFetch(), withInterceptorsFromDi()),
-    // ng2-charts：lazy 註冊 Chart.js 所有預設 scale/element/plugin，
-    // 之後若要 tree-shake，可改用 withRegisterables([...])。
+    // 順序：先 problem（攔截 error 包成 ProblemDetails）→ 再 auth（401 redirect）
+    provideHttpClient(withFetch(), withInterceptors([problemErrorInterceptor, authInterceptor])),
     provideCharts(withDefaultRegisterables()),
   ],
 };

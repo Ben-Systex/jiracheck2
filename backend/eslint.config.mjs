@@ -26,6 +26,11 @@ export default [
         clearTimeout: 'readonly',
         setInterval: 'readonly',
         clearInterval: 'readonly',
+        // Node 18+ 已是 global
+        fetch: 'readonly',
+        URL: 'readonly',
+        URLSearchParams: 'readonly',
+        NodeJS: 'readonly',
       },
     },
     plugins: {
