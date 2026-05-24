@@ -1,0 +1,584 @@
+openapi: 3.1.0
+info:
+  title: Jira 小幫手 — Backend REST API
+  version: 0.1.0
+  description: |
+    Jira 小幫手前端與後端之間的 REST 契約（v1）。
+    所有端點均以 `sid` cookie 識別使用者；除 `/auth/*` 外皆需登入。
+    錯誤回應一律採 RFC 7807 (`application/problem+json`)。
+
+servers:
+  - url: /api/v1
+    description: backend in-cluster
+
+tags:
+  - name: auth
+    description: Atlassian OAuth 2.0 流程
+  - name: projects
+    description: US1 專案儀表板
+  - name: nlq
+    description: US2 自然語言查詢
+  - name: people
+    description: US3 人員工作狀況
+  - name: bulk
+    description: US4 整批更新
+  - name: meta
+
+security:
+  - sessionCookie: []
+
+paths:
+  /auth/login:
+    get:
+      tags: [auth]
+      summary: 啟動 Atlassian OAuth 授權碼流程
+      security: []
+      responses:
+        "302":
+          description: 302 轉址到 atlassian.com 授權頁
+          headers:
+            Location:
+              schema: { type: string }
+
+  /auth/callback:
+    get:
+      tags: [auth]
+      summary: OAuth 授權碼 callback
+      security: []
+      parameters:
+        - in: query
+          name: code
+          required: true
+          schema: { type: string }
+        - in: query
+          name: state
+          required: true
+          schema: { type: string }
+      responses:
+        "302":
+          description: 302 回前端首頁；同時設置 sid cookie
+        "400":
+          $ref: "#/components/responses/Problem"
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: 結束 session，撤銷 refresh token
+      responses:
+        "204": { description: 已登出 }
+
+  /me:
+    get:
+      tags: [meta]
+      summary: 取得目前登入使用者
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Me" }
+        "401":
+          $ref: "#/components/responses/Problem"
+
+  /projects/recent:
+    get:
+      tags: [projects]
+      summary: US1 — 最近存取的 5 個專案
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    maxItems: 5
+                    items: { $ref: "#/components/schemas/ProjectCard" }
+
+  /projects/search:
+    get:
+      tags: [projects]
+      summary: US1 — 以關鍵字搜尋專案
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ProjectCard" }
+
+  /projects/{projectKey}:
+    parameters:
+      - in: path
+        name: projectKey
+        required: true
+        schema: { type: string }
+    get:
+      tags: [projects]
+      summary: 取得單一專案儀表板（並記錄存取）
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProjectDashboard" }
+        "404":
+          $ref: "#/components/responses/Problem"
+
+  /nlq/query:
+    post:
+      tags: [nlq]
+      summary: US2 — 自然語言查詢（兩階段：先回 plan + explanation，後執行）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+                executeImmediately:
+                  type: boolean
+                  default: true
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NlqResponse" }
+        "422":
+          description: 系統無法解讀問句
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+
+  /people/search:
+    get:
+      tags: [people]
+      summary: US3 — 搜尋人員
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/PersonRef" }
+
+  /people/{accountId}/issues:
+    parameters:
+      - in: path
+        name: accountId
+        required: true
+        schema: { type: string }
+    get:
+      tags: [people]
+      summary: US3 — 該人員跨專案的任務（預設未完成）
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [open, done, all]
+            default: open
+        - in: query
+          name: pageSize
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IssueList" }
+
+  /people/{accountId}/stats:
+    parameters:
+      - in: path
+        name: accountId
+        required: true
+        schema: { type: string }
+    get:
+      tags: [people]
+      summary: US3 — 該人員某段期間之統計（含 Story Points 與 Actual Story Points）
+      parameters:
+        - in: query
+          name: from
+          required: true
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PersonStats" }
+
+  /bulk/preview:
+    post:
+      tags: [bulk]
+      summary: US4 — 批次更新預覽
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulkPreviewRequest" }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulkPreviewResponse" }
+        "400":
+          $ref: "#/components/responses/Problem"
+
+  /bulk/apply:
+    post:
+      tags: [bulk]
+      summary: US4 — 套用批次更新（需與 preview 的 token 一致 + 確認筆數）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BulkApplyRequest" }
+      responses:
+        "202":
+          description: 已接受並開始執行
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [operationId]
+                properties:
+                  operationId: { type: string, format: uuid }
+        "409":
+          $ref: "#/components/responses/Problem"
+
+  /bulk/operations/{operationId}:
+    parameters:
+      - in: path
+        name: operationId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [bulk]
+      summary: 查詢批次更新狀態與每筆結果
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BulkOperation" }
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: sid
+
+  responses:
+    Problem:
+      description: RFC 7807 problem
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+
+  schemas:
+    Problem:
+      type: object
+      required: [type, title, status]
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string, description: "中文摘要" }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        cause:
+          type: string
+          enum: [validation, unauthorized, forbidden, not_found, conflict, upstream, rate_limited, internal]
+
+    Me:
+      type: object
+      required: [accountId, displayName]
+      properties:
+        accountId: { type: string }
+        displayName: { type: string }
+        email: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+
+    ProjectCard:
+      type: object
+      required: [key, name, openIssueCount, sprintProgress]
+      properties:
+        key: { type: string }
+        name: { type: string }
+        avatarUrl: { type: string, nullable: true }
+        openIssueCount: { type: integer }
+        sprintProgress:
+          type: object
+          nullable: true
+          required: [completedSP, totalSP]
+          properties:
+            completedSP: { type: number }
+            totalSP: { type: number }
+            sprintName: { type: string }
+            endsAt: { type: string, format: date-time, nullable: true }
+        lastAccessedAt: { type: string, format: date-time, nullable: true }
+
+    ProjectDashboard:
+      allOf:
+        - $ref: "#/components/schemas/ProjectCard"
+        - type: object
+          properties:
+            topAssignees:
+              type: array
+              items:
+                type: object
+                properties:
+                  person: { $ref: "#/components/schemas/PersonRef" }
+                  openIssueCount: { type: integer }
+                  totalSP: { type: number }
+
+    PersonRef:
+      type: object
+      required: [accountId, displayName]
+      properties:
+        accountId: { type: string }
+        displayName: { type: string }
+        email: { type: string, nullable: true }
+        avatarUrl: { type: string, nullable: true }
+
+    IssueSummary:
+      type: object
+      required: [key, summary, status, projectKey]
+      properties:
+        key: { type: string }
+        summary: { type: string }
+        status: { type: string }
+        projectKey: { type: string }
+        assignee:
+          allOf:
+            - $ref: "#/components/schemas/PersonRef"
+          nullable: true
+        priority: { type: string, nullable: true }
+        dueDate: { type: string, format: date, nullable: true }
+        storyPoints: { type: number, nullable: true }
+        actualStoryPoints: { type: number, nullable: true }
+        sprint: { type: string, nullable: true }
+        labels:
+          type: array
+          items: { type: string }
+
+    IssueList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/IssueSummary" }
+        nextCursor: { type: string, nullable: true }
+        partialPermission:
+          type: boolean
+          description: 是否因權限而部分結果未顯示
+
+    PersonStats:
+      type: object
+      required: [from, to, totals]
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        totals:
+          type: object
+          required: [completedCount, storyPointsSum, actualStoryPointsSum]
+          properties:
+            completedCount: { type: integer }
+            storyPointsSum: { type: number }
+            actualStoryPointsSum: { type: number }
+            estimateAccuracyRatio:
+              type: number
+              nullable: true
+              description: storyPointsSum / actualStoryPointsSum
+        byProject:
+          type: array
+          items:
+            type: object
+            properties:
+              projectKey: { type: string }
+              completedCount: { type: integer }
+              storyPointsSum: { type: number }
+              actualStoryPointsSum: { type: number }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/IssueSummary" }
+
+    QueryPlan:
+      type: object
+      description: 由 LLM 產出的結構化查詢計畫（被 backend 翻成 mcp-atlassian 工具呼叫）
+      required: [intent, filters]
+      properties:
+        intent:
+          type: string
+          enum: [list_issues, count_issues, sum_story_points, top_n_assignees, group_count]
+        filters:
+          type: object
+          properties:
+            projectKeys: { type: array, items: { type: string } }
+            assigneeAccountIds: { type: array, items: { type: string } }
+            statuses: { type: array, items: { type: string } }
+            createdRange:
+              type: object
+              properties:
+                from: { type: string, format: date }
+                to: { type: string, format: date }
+            updatedRange:
+              type: object
+              properties:
+                from: { type: string, format: date }
+                to: { type: string, format: date }
+            sprintNames: { type: array, items: { type: string } }
+            labels: { type: array, items: { type: string } }
+        groupBy:
+          type: string
+          enum: [assignee, status, project, sprint, priority]
+          nullable: true
+        topN:
+          type: integer
+          nullable: true
+          minimum: 1
+          maximum: 50
+
+    NlqResponse:
+      type: object
+      required: [explanationZh, plan, status]
+      properties:
+        explanationZh: { type: string, description: "「我這樣理解你的問題」中文摘要" }
+        plan: { $ref: "#/components/schemas/QueryPlan" }
+        status:
+          type: string
+          enum: [ok, clarification_needed, partial_permission, error]
+        clarificationQuestions:
+          type: array
+          description: 系統需要補充的具體資訊（status = clarification_needed 時）
+          items: { type: string }
+        results:
+          type: object
+          description: 已執行（executeImmediately=true）的結果；多型，按 intent
+          additionalProperties: true
+        latencyMs: { type: integer }
+
+    BulkPreviewRequest:
+      type: object
+      required: [projectKey, filter, targetField, targetValue]
+      properties:
+        projectKey: { type: string }
+        filter:
+          type: object
+          properties:
+            statuses: { type: array, items: { type: string } }
+            assigneeAccountIds: { type: array, items: { type: string } }
+            sprintNames: { type: array, items: { type: string } }
+            labels: { type: array, items: { type: string } }
+            issueTypes: { type: array, items: { type: string } }
+            dueDateRange:
+              type: object
+              properties:
+                from: { type: string, format: date }
+                to: { type: string, format: date }
+        targetField:
+          type: string
+          enum: [assignee, due_date, label, priority, sprint]
+          description: 白名單；FR-047
+        targetValue:
+          description: 依 targetField 多型；例如 assignee 為 accountId、due_date 為 ISO date、label 為 string[]、priority 為 string、sprint 為 sprintId 或 name
+          oneOf:
+            - { type: string }
+            - { type: array, items: { type: string } }
+            - { type: object }
+
+    BulkPreviewResponse:
+      type: object
+      required: [previewToken, totalCount, items]
+      properties:
+        previewToken:
+          type: string
+          description: 預覽結果的 token；/bulk/apply 必須引用此 token
+        totalCount:
+          type: integer
+          maximum: 200
+          description: FR-046；> 200 時 backend 直接回 400
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              issueKey: { type: string }
+              summary: { type: string }
+              currentValue: {}
+              proposedValue: {}
+              editableByUser: { type: boolean, description: 使用者對該 issue 是否有編輯權限 }
+
+    BulkApplyRequest:
+      type: object
+      required: [previewToken, confirmCount]
+      properties:
+        previewToken: { type: string }
+        confirmCount:
+          type: integer
+          description: 使用者於確認對話框輸入的「將被更新筆數」，與 totalCount 不符時 backend 回 409
+
+    BulkOperation:
+      type: object
+      required: [id, status, totalCount, successCount, failureCount, items]
+      properties:
+        id: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [running, success, partial_failure, failure, cancelled]
+        totalCount: { type: integer }
+        successCount: { type: integer }
+        failureCount: { type: integer }
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time, nullable: true }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              issueKey: { type: string }
+              result:
+                type: string
+                enum: [success, permission_denied, version_conflict, api_error]
+              errorMessage: { type: string, nullable: true }
+              appliedAt: { type: string, format: date-time, nullable: true }
