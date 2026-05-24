@@ -82,8 +82,10 @@ description: "Task list for 001-jira-assistant implementation"
 - [ ] T026 [P] 建立 auth guard 與根路由配置於 `frontend/src/app/app.routes.ts`：未登入導向 `/login` 頁；建立 `frontend/src/app/features/login/login.page.ts`（單一按鈕「以 Atlassian 登入」）
 - [ ] T027 [P] 建立全站 shell 元件 `frontend/src/app/shell/`：含 header（顯示 `/me` 結果、登出鈕）、側欄導覽（Dashboard / NLQ / People / Bulk）
 - [ ] T028 [P] 整合 axe-core 至 Playwright 設定 `frontend/e2e/axe.config.ts`（憲法 III + IV）
+- [ ] T101 [P] 設計系統元件 `frontend/src/app/ui/freshness-bar/freshness-bar.component.ts`：對 FR-003 — 顯示 `dataFreshness.fetchedAt` 相對時間（例「2 分鐘前」）、`source` badge（live / cache）、與「重新整理」按鈕（emit refresh event；caller 重打 API 並帶 `?refresh=true`）。配套 unit test 於 `frontend/src/app/ui/freshness-bar/freshness-bar.component.spec.ts`
+- [ ] T102 [P] Backend 統一回應 envelope helper `backend/src/lib/data-freshness.ts`：提供 `withFreshness(payload, { fetchedAt, source, cacheTtlSeconds })`；所有對 Jira 取資料的 route 都透過此 helper 包回；並提供 `forceRefresh?: boolean` 來繞過 `services/jira/cache.ts` 的 LRU
 
-**Checkpoint**: 任何 user story 都可在「已登入、shell 可用、http 與 problem 串好、MCP 連得到、DB schema 已套用」的基礎上開始實作。
+**Checkpoint**: 任何 user story 都可在「已登入、shell 可用、http 與 problem 串好、MCP 連得到、DB schema 已套用、freshness-bar 與 cache helper 就緒」的基礎上開始實作。
 
 ---
 
@@ -104,8 +106,8 @@ description: "Task list for 001-jira-assistant implementation"
 
 - [ ] T033 [P] [US1] DB repository `backend/src/db/repositories/recent-access.ts`：`upsertAccess(userId, projectKey)`、`listRecent(userId, limit=5)`、`pruneOver100(userId)`（按 data-model.md 保留策略）
 - [ ] T034 [P] [US1] Service `backend/src/services/jira/projects.ts`：`listAccessibleProjects(userId, q?)`、`getProject(userId, key)`、`getDashboardMetrics(userId, key)` — 透過 MCP `list_projects` + `search_issues`（憲法 IV：批次化、避免 N+1）
-- [ ] T035 [US1] Route `backend/src/routes/projects.ts`：`GET /projects/recent`、`/projects/search?q`、`/projects/{key}`（最後一個於回應前 upsert `recent_project_access`）
-- [ ] T036 [P] [US1] Frontend feature `frontend/src/app/features/dashboard/dashboard.page.ts`：使用 Angular signals + computed；採設計系統 ui 元件；含「最近 5 個」與「請使用搜尋」兩種狀態切換
+- [ ] T035 [US1] Route `backend/src/routes/projects.ts`：`GET /projects/recent`、`/projects/search?q`、`/projects/{key}`（最後一個於回應前 upsert `recent_project_access`）；3 條皆透過 T102 的 `withFreshness` helper 包回；皆支援 `?refresh=true` 繞過 cache（FR-003）
+- [ ] T036 [P] [US1] Frontend feature `frontend/src/app/features/dashboard/dashboard.page.ts`：使用 Angular signals + computed；採設計系統 ui 元件；含「最近 5 個」與「請使用搜尋」兩種狀態切換；於頁頂嵌入 `<freshness-bar>`（T101），refresh event 觸發重打 `/projects/recent?refresh=true`（FR-003）
 - [ ] T037 [P] [US1] Frontend 元件 `frontend/src/app/ui/project-card/project-card.component.ts`：顯示專案名/key/未完成數/Story Points 完成 doughnut（ng2-charts，lazy 註冊）
 - [ ] T038 [P] [US1] Frontend 搜尋輸入 `frontend/src/app/features/dashboard/search-box.component.ts`：採 RxJS debounce 500ms（符合 spec acceptance #3）
 - [ ] T039 [P] [US1] Frontend HTTP service `frontend/src/app/features/dashboard/projects-api.service.ts`：包 `/projects/recent`、`/projects/search`、`/projects/{key}` 三條 API
@@ -129,19 +131,21 @@ description: "Task list for 001-jira-assistant implementation"
 - [ ] T044 [P] [US2] 單元測試 `backend/tests/unit/nlq-query-plan.spec.ts`：對 QueryPlan zod schema 的合法/不合法輸入；以及 plan → 中文 explanation 字串的 snapshot 測試
 - [ ] T045 [P] [US2] 整合測試 `backend/tests/integration/nlq-flow.spec.ts`：以 mocked Anthropic + mocked MCP 完成「問句 → 計畫 → 執行 → 結果」全流程；涵蓋 spec acceptance #1–#4
 - [ ] T046 [P] [US2] E2E 測試 `frontend/e2e/us2-nlq.spec.ts`：黃金路徑（解讀 + 執行）+ clarification + partial_permission 三條路徑
+- [ ] T103 [P] [US2] NLQ accuracy fixture `backend/tests/fixtures/nlq-accuracy/cases.yaml`：對應 SC-002，至少 20 道事先準備的中/英文問句測試集。每筆含 `id / question / expected.intent / expected.filters / expected.status`（ok / clarification_needed）；分為三大類各 ≥ 6 筆：列出（list）、統計（count/sum/avg/top_n/group_count）、跨專案。
+- [ ] T104 [P] [US2] NLQ accuracy runner `backend/tests/integration/nlq-accuracy.spec.ts`：載入 T103 的 fixture；對每筆呼叫 NlqService（連真實 LLM 或可開關的 record/replay）；比對 intent / filters 主軸欄位；輸出 `nlq-accuracy.json` 報告（總筆數 / 正確 / clarification / 錯誤分類）。本地預設 skip 標籤 `@nightly`，CI nightly job 才跑。
 
 ### Implementation for User Story 2
 
 - [ ] T047 [P] [US2] DB repository `backend/src/db/repositories/query-history.ts`：`insert(...)`、`pruneOlderThanDays(days=90)`
 - [ ] T048 [P] [US2] Redactor `backend/src/services/nlq/redactor.ts`：移除疑似 token / 個資 / 自訂內部 id；保留 displayName 與 accountId
-- [ ] T049 [P] [US2] QueryPlan schema `backend/src/services/nlq/query-plan.schema.ts`（zod，對應 OpenAPI 中的 `QueryPlan`）
+- [ ] T049 [P] [US2] QueryPlan schema `backend/src/services/nlq/query-plan.schema.ts`（zod，對應 OpenAPI 中的 `QueryPlan`；intent 必含 `list_issues / count_issues / sum_story_points / sum_actual_story_points / avg_story_points / avg_actual_story_points / top_n_assignees / group_count` 共 8 種，覆蓋 FR-022 五大統計）
 - [ ] T050 [P] [US2] Translator `backend/src/services/nlq/translator.ts`：QueryPlan → (a) MCP tool 呼叫序列、(b) 中文 explanation 字串
 - [ ] T051 [P] [US2] Anthropic client wrapper `backend/src/services/nlq/llm.ts`：採 `@anthropic-ai/sdk`，預設 `claude-sonnet-4-6`，啟用 prompt caching；system prompt 維護於 `backend/src/services/nlq/prompts/nlq.system.md`
 - [ ] T052 [US2] Service `backend/src/services/nlq/index.ts`：`analyze(question, userId)` 串接 redactor → llm → schema 驗證 → translator → executor；status 判斷邏輯（ok/clarification_needed/partial_permission/error）
-- [ ] T053 [US2] Route `backend/src/routes/nlq.ts`：`POST /nlq/query`；寫入 `query_history`；遵守 FR-025（唯讀）
-- [ ] T054 [P] [US2] Frontend feature `frontend/src/app/features/nlq/nlq.page.ts`：含輸入框（限 1000 字）、submit、explanation card、result viewport（依 intent 多型呈現）
+- [ ] T053 [US2] Route `backend/src/routes/nlq.ts`：`POST /nlq/query`；寫入 `query_history`；遵守 FR-025（唯讀）；若 `executeImmediately=true` 且 status=ok，回應中以 T102 的 `withFreshness` 附上 `dataFreshness`（FR-003）
+- [ ] T054 [P] [US2] Frontend feature `frontend/src/app/features/nlq/nlq.page.ts`：含輸入框（限 1000 字）、submit、explanation card、result viewport（依 intent 多型呈現）；result viewport 頂部嵌入 `<freshness-bar>`（T101），refresh event 重打同 question 並標示 `?refresh=true`（FR-003）
 - [ ] T055 [P] [US2] Frontend HTTP service `frontend/src/app/features/nlq/nlq-api.service.ts`
-- [ ] T056 [P] [US2] Frontend result renderer `frontend/src/app/features/nlq/result-renderer/`：分支 list_issues / count / sum_story_points / top_n_assignees / group_count 五種 intent 各一個 component
+- [ ] T056 [P] [US2] Frontend result renderer `frontend/src/app/features/nlq/result-renderer/`：對 8 種 intent 分別實作 sub-component — list_issues / count_issues / sum_story_points / sum_actual_story_points / avg_story_points / avg_actual_story_points / top_n_assignees / group_count（共用 number-card 與 issue-list 兩個 ui 元件）
 - [ ] T057 [US2] 串接：在 `nlq.page` 接 `NlqApiService`；對 `clarification_needed` 顯示後端提供的補充問題清單；對 `partial_permission` 顯示明確標示
 - [ ] T058 [US2] 補強：限制過長結果（>1000 筆）改提示縮小範圍（edge case）
 
@@ -166,8 +170,8 @@ description: "Task list for 001-jira-assistant implementation"
 
 - [ ] T063 [P] [US3] Service `backend/src/services/jira/users.ts`：`searchUsers(q)`（呼叫 MCP user search）
 - [ ] T064 [P] [US3] Service `backend/src/services/jira/issues.ts`：`listByAssignee(userId, accountId, opts)`、`statsByAssignee(userId, accountId, from, to)`（含 SP / Actual SP 加總、估準度）
-- [ ] T065 [US3] Route `backend/src/routes/people.ts`：`/people/search`、`/people/{accountId}/issues`、`/people/{accountId}/stats`
-- [ ] T066 [P] [US3] Frontend feature `frontend/src/app/features/people/people.page.ts`：含人員搜尋下拉、issue list、time range picker、stats card
+- [ ] T065 [US3] Route `backend/src/routes/people.ts`：`/people/search`、`/people/{accountId}/issues`、`/people/{accountId}/stats`；後兩條皆透過 T102 `withFreshness` 包回，支援 `?refresh=true`（FR-003）
+- [ ] T066 [P] [US3] Frontend feature `frontend/src/app/features/people/people.page.ts`：含人員搜尋下拉、issue list、time range picker、stats card；於 issue list 與 stats card 上方各嵌入 `<freshness-bar>`（T101），refresh event 個別重打對應 API 並帶 `?refresh=true`（FR-003）
 - [ ] T067 [P] [US3] Frontend 元件 `frontend/src/app/features/people/stats-card/stats-card.component.ts`：含 ng2-charts 折線（SP vs Actual）+ 柱狀（完成數 by project）
 - [ ] T068 [P] [US3] Frontend HTTP service `frontend/src/app/features/people/people-api.service.ts`
 - [ ] T069 [US3] 串接：在 `people.page` 結合三條 API；分頁採 cursor + virtual scroll（憲法 IV）
@@ -187,7 +191,7 @@ description: "Task list for 001-jira-assistant implementation"
 ### Tests for User Story 4 ⚠️
 
 - [ ] T072 [P] [US4] 契約測試 `backend/tests/contract/bulk.spec.ts`：對 `/bulk/preview`、`/bulk/apply`、`/bulk/operations/{id}` 響應斷言
-- [ ] T073 [P] [US4] 單元測試 `backend/tests/unit/bulk-validate.spec.ts`：白名單欄位 (FR-047)、200 筆上限 (FR-046)、確認筆數 mismatch (acceptance #4)
+- [ ] T073 [P] [US4] 單元測試 `backend/tests/unit/bulk-validate.spec.ts`：白名單欄位 (FR-047)、200 筆上限 (FR-046)、confirmText 正規式 `^確認更新\s*(\d+)\s*筆$`、confirmText 解析數字 vs confirmCount vs totalCount 三方比對（acceptance #4）
 - [ ] T074 [P] [US4] 整合測試 `backend/tests/integration/bulk-preview.spec.ts`：覆蓋 spec acceptance #1、#3（每筆權限標示）、#5（0 筆禁用套用）
 - [ ] T075 [P] [US4] 整合測試 `backend/tests/integration/bulk-apply.spec.ts`：覆蓋 #2（部分失敗）、版本衝突（edge case）、確認字串錯誤回 409
 - [ ] T076 [P] [US4] 整合測試 `backend/tests/integration/bulk-audit.spec.ts`：每次成功/失敗皆寫入 `bulk_update_operations` + `bulk_update_items`，可由 `/bulk/operations/{id}` 查詢
@@ -198,13 +202,13 @@ description: "Task list for 001-jira-assistant implementation"
 
 - [ ] T079 [P] [US4] DB repository `backend/src/db/repositories/bulk-updates.ts`：`createOperation(...)`、`recordItem(...)`、`finalize(...)`、`getById(...)`、`pruneOlderThanMonths(months=12)`
 - [ ] T080 [P] [US4] Service `backend/src/services/bulk/preview.ts`：filter → JQL → MCP `search_issues` → 投影出 currentValue / proposedValue / editableByUser，發 `previewToken`（短期記憶體 + signed JWT，30 分鐘 TTL）
-- [ ] T081 [P] [US4] Service `backend/src/services/bulk/apply.ts`：解 previewToken → 比對 confirmCount → 對每筆呼叫 MCP `edit_issue`；採每筆獨立 try/catch，分類 `permission_denied` / `version_conflict` / `api_error`；最終 finalize 操作狀態
+- [ ] T081 [P] [US4] Service `backend/src/services/bulk/apply.ts`：解 previewToken → 三方比對（confirmText 解析數字 == confirmCount == totalCount，任一不符回 409）→ 對每筆呼叫 MCP `edit_issue`；採每筆獨立 try/catch，分類 `permission_denied` / `version_conflict` / `api_error`；最終 finalize 操作狀態
 - [ ] T082 [P] [US4] Validator `backend/src/services/bulk/validator.ts`：白名單欄位（assignee、due_date、label、priority、sprint）+ 上限 200 筆檢查
 - [ ] T083 [US4] Route `backend/src/routes/bulk.ts`：`POST /bulk/preview`、`POST /bulk/apply`、`GET /bulk/operations/{id}`；apply 採 `202 Accepted` + 背景作業
 - [ ] T084 [P] [US4] Frontend feature `frontend/src/app/features/bulk-update/bulk-update.page.ts`：分四步（選專案 → 條件 → 預覽 → 確認套用）；採 stepper UI
 - [ ] T085 [P] [US4] Frontend filter form `frontend/src/app/features/bulk-update/filter-form/`：欄位限定 Status / Assignee / Sprint / Issue Type / Label / Due Date
-- [ ] T086 [P] [US4] Frontend preview table `frontend/src/app/features/bulk-update/preview-table/`：含 currentValue/proposedValue 對比、editableByUser badge、totalCount 顯示、200 上限警示
-- [ ] T087 [P] [US4] Frontend confirm dialog `frontend/src/app/features/bulk-update/confirm-dialog/`：使用者必須輸入「確認更新 N 筆」字串才能送出
+- [ ] T086 [P] [US4] Frontend preview table `frontend/src/app/features/bulk-update/preview-table/`：含 currentValue/proposedValue 對比、editableByUser badge、totalCount 顯示、200 上限警示；於表頂顯示 `預覽於 {fetchedAt}` 並提供「重新預覽」按鈕（FR-003，獨立於 freshness-bar，因 preview token 會被廢棄需告知使用者）
+- [ ] T087 [P] [US4] Frontend confirm dialog `frontend/src/app/features/bulk-update/confirm-dialog/`：使用者必須完整輸入字串「確認更新 N 筆」；前端以正規式 `^確認更新\s*(\d+)\s*筆$` 解析後同送 `{confirmText, confirmCount}` 給 `/bulk/apply`；解析失敗即就地顯示錯誤、disable 套用鈕
 - [ ] T088 [P] [US4] Frontend operation polling service `frontend/src/app/features/bulk-update/operations.service.ts`：以指數退讓 polling `/bulk/operations/{id}` 直到 status 終態
 - [ ] T089 [US4] 串接：在 `bulk-update.page` 注入上述 service；維持 stepper 狀態於 component-local signal；錯誤一律走 ProblemErrorInterceptor 統一呈現
 - [ ] T090 [US4] 在 `bulk-update.page` 結尾頁顯示成功/失敗結果並提供「下載 CSV」連結（呼叫 `/bulk/operations/{id}?format=csv` — 此為 polish phase 擴充端點）
@@ -227,6 +231,16 @@ description: "Task list for 001-jira-assistant implementation"
 - [ ] T098 [P] i18n 字串審查：對 `frontend/src/app/**/*.html` 與 `backend/src/lib/i18n/zh-TW.ts` 全面盤點，確保無硬編碼英文 user-facing 字串（憲法 III）
 - [ ] T099 [P] 無障礙最終掃描：在 CI 中強制 axe-core E2E 報告 0 critical、0 serious；對 4 個 feature 各跑一次
 - [ ] T100 執行 `specs/001-jira-assistant/quickstart.md` 完整 5 步驗證；補寫任何缺漏的 `.env.example` / docker compose 修正
+- [ ] T105 [P] CI nightly NLQ accuracy gate：於 `.github/workflows/nlq-accuracy.yml` 新增每日排程，跑 T104 的 `@nightly` runner；若「正確比例 < 90%」或「錯誤分類數 > 0」即 fail，並把 `nlq-accuracy.json` 上傳 artifact。對應 SC-002 之自動化驗證。
+- [ ] T106 [P] SC-007 跨權限抽測 fixture：於 `frontend/e2e/fixtures/permission-accounts.ts` 與 `ops/.env.test` 維護兩個測試帳號：`E2E_USER_LOW`（僅可見專案 PROJ-A）與 `E2E_USER_HIGH`（可見 PROJ-A + PROJ-B + PROJ-C）；於 CI secret store 注入。
+- [ ] T107 [P] SC-007 跨權限 E2E 測試 `frontend/e2e/sc007-permission-isolation.spec.ts`：以 `E2E_USER_LOW` 登入後，斷言：(a) `/projects/recent` 與 `/projects/search?q=PROJ-B` 皆看不到 PROJ-B、(b) 直接打 `/projects/PROJ-B` 回 404 problem、(c) `/people/{anyId}/issues` 結果只含 PROJ-A、(d) NLQ「列出 PROJ-B 的所有任務」回應 partial_permission 並標示。對應 SC-007「至少一次跨權限抽測」之自動化版本。
+- [ ] T108 [P] SC-001 效能 smoke test `backend/tests/perf/api-latency.k6.js`：以 k6 模擬 20 vu / 60 秒；對 `GET /projects/recent`、`GET /people/{accountId}/stats`、`POST /nlq/query` 三條主要查詢路徑量 p95；輸出 JSON 報告至 `backend/tests/perf/results/`。
+- [ ] T109 [P] SC-001 CI gate `.github/workflows/perf.yml`：對 main 分支與 release tag 跑 T108；fail 條件：`/projects/recent` p95 > 2 s、其餘讀取端點 p95 > 3 s、`POST /nlq/query` 端對端 p95 > 6 s（與 plan.md Performance Goals + Complexity Tracking 對齊）。報告 artifact 上傳。
+- [ ] T110 [P] [US4] Backend repository 補強 `backend/src/db/repositories/bulk-updates.ts`：新增 `listByUser(userId, { projectKey?, status?, cursor?, pageSize=20 })` 含 keyset cursor 分頁；對應 OpenAPI `BulkOperationSummary`。
+- [ ] T111 [P] [US4] Backend route 補強 `backend/src/routes/bulk.ts`：新增 `GET /api/v1/bulk/operations`（query: projectKey / status / cursor / pageSize）；對應 US4 acceptance #5「日後查核」。
+- [ ] T112 [P] [US4] 契約測試 `backend/tests/contract/bulk-history.spec.ts`：對 `GET /bulk/operations` 之 query 組合與分頁的響應 schema 斷言。
+- [ ] T113 [P] [US4] Frontend feature `frontend/src/app/features/bulk-update/history/history.page.ts`：列出當前使用者的批次更新歷史；可篩選專案、狀態；表格 row 點擊跳 `bulk/operations/{id}` 詳細頁；於頁頂引用 `<freshness-bar>`。串於 shell 側欄「批次更新 → 歷史」。
+- [ ] T114 [P] [US4] E2E `frontend/e2e/us4-bulk-history.spec.ts`：apply 完成後切換到歷史頁可看到該筆紀錄；篩選 status=success 後該筆仍可見；超過 12 個月之模擬資料不顯示（與 data-model 保留策略對齊）。
 
 ---
 

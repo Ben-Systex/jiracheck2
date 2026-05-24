@@ -84,6 +84,11 @@ paths:
     get:
       tags: [projects]
       summary: US1 — 最近存取的 5 個專案
+      parameters:
+        - in: query
+          name: refresh
+          schema: { type: boolean, default: false }
+          description: true 時繞過應用層 cache（對應 freshness-bar 的「重新整理」按鈕）
       responses:
         "200":
           description: ok
@@ -91,12 +96,13 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [items]
+                required: [items, dataFreshness]
                 properties:
                   items:
                     type: array
                     maxItems: 5
                     items: { $ref: "#/components/schemas/ProjectCard" }
+                  dataFreshness: { $ref: "#/components/schemas/DataFreshness" }
 
   /projects/search:
     get:
@@ -107,6 +113,9 @@ paths:
           name: q
           required: true
           schema: { type: string, minLength: 1, maxLength: 64 }
+        - in: query
+          name: refresh
+          schema: { type: boolean, default: false }
       responses:
         "200":
           description: ok
@@ -114,11 +123,12 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [items]
+                required: [items, dataFreshness]
                 properties:
                   items:
                     type: array
                     items: { $ref: "#/components/schemas/ProjectCard" }
+                  dataFreshness: { $ref: "#/components/schemas/DataFreshness" }
 
   /projects/{projectKey}:
     parameters:
@@ -285,6 +295,41 @@ paths:
         "409":
           $ref: "#/components/responses/Problem"
 
+  /bulk/operations:
+    get:
+      tags: [bulk]
+      summary: US4 acceptance #5 — 列出目前使用者的批次更新歷史（保留 12 個月）
+      parameters:
+        - in: query
+          name: projectKey
+          schema: { type: string }
+          description: 可選；只列指定專案的操作
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [running, success, partial_failure, failure, cancelled]
+          description: 可選；依結果過濾
+        - in: query
+          name: pageSize
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+        - in: query
+          name: cursor
+          schema: { type: string }
+      responses:
+        "200":
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/BulkOperationSummary" }
+                  nextCursor: { type: string, nullable: true }
+
   /bulk/operations/{operationId}:
     parameters:
       - in: path
@@ -300,6 +345,8 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BulkOperation" }
+        "404":
+          $ref: "#/components/responses/Problem"
 
 components:
   securitySchemes:
@@ -316,6 +363,26 @@ components:
           schema: { $ref: "#/components/schemas/Problem" }
 
   schemas:
+    DataFreshness:
+      type: object
+      description: |
+        FR-003：所有顯示 Jira 資料的回應 MUST 包含此欄位，供前端「freshness-bar」呈現
+        資料更新時間與「重新整理」按鈕（按下時即重打對應 API 並繞過 cache）。
+      required: [fetchedAt, source]
+      properties:
+        fetchedAt:
+          type: string
+          format: date-time
+          description: 該回應實際從 Jira 取得 / cache 命中的時間
+        source:
+          type: string
+          enum: [live, cache]
+          description: live = 即時打 Jira；cache = 來自應用層 LRU
+        cacheTtlSeconds:
+          type: integer
+          nullable: true
+          description: 若 source=cache，此 cache 條目剩餘有效秒數
+
     Problem:
       type: object
       required: [type, title, status]
@@ -361,6 +428,7 @@ components:
       allOf:
         - $ref: "#/components/schemas/ProjectCard"
         - type: object
+          required: [dataFreshness]
           properties:
             topAssignees:
               type: array
@@ -370,6 +438,7 @@ components:
                   person: { $ref: "#/components/schemas/PersonRef" }
                   openIssueCount: { type: integer }
                   totalSP: { type: number }
+            dataFreshness: { $ref: "#/components/schemas/DataFreshness" }
 
     PersonRef:
       type: object
@@ -403,7 +472,7 @@ components:
 
     IssueList:
       type: object
-      required: [items]
+      required: [items, dataFreshness]
       properties:
         items:
           type: array
@@ -412,13 +481,15 @@ components:
         partialPermission:
           type: boolean
           description: 是否因權限而部分結果未顯示
+        dataFreshness: { $ref: "#/components/schemas/DataFreshness" }
 
     PersonStats:
       type: object
-      required: [from, to, totals]
+      required: [from, to, totals, dataFreshness]
       properties:
         from: { type: string, format: date }
         to: { type: string, format: date }
+        dataFreshness: { $ref: "#/components/schemas/DataFreshness" }
         totals:
           type: object
           required: [completedCount, storyPointsSum, actualStoryPointsSum]
@@ -450,7 +521,23 @@ components:
       properties:
         intent:
           type: string
-          enum: [list_issues, count_issues, sum_story_points, top_n_assignees, group_count]
+          description: |
+            對應 spec FR-022「計數、加總、平均、分組計數、Top-N」之 5 大類統計：
+            - list_issues：列出（明細）
+            - count_issues：計數
+            - sum_story_points / sum_actual_story_points：加總
+            - avg_story_points / avg_actual_story_points：平均
+            - top_n_assignees：Top-N 排序
+            - group_count：分組計數
+          enum:
+            - list_issues
+            - count_issues
+            - sum_story_points
+            - sum_actual_story_points
+            - avg_story_points
+            - avg_actual_story_points
+            - top_n_assignees
+            - group_count
         filters:
           type: object
           properties:
@@ -485,6 +572,10 @@ components:
       properties:
         explanationZh: { type: string, description: "「我這樣理解你的問題」中文摘要" }
         plan: { $ref: "#/components/schemas/QueryPlan" }
+        dataFreshness:
+          allOf: [{ $ref: "#/components/schemas/DataFreshness" }]
+          nullable: true
+          description: 當 executeImmediately=true 且 status=ok 時必填；其他狀態可省略
         status:
           type: string
           enum: [ok, clarification_needed, partial_permission, error]
@@ -551,12 +642,40 @@ components:
 
     BulkApplyRequest:
       type: object
-      required: [previewToken, confirmCount]
+      required: [previewToken, confirmText, confirmCount]
       properties:
         previewToken: { type: string }
+        confirmText:
+          type: string
+          description: |
+            使用者於確認對話框輸入的完整字串，格式為「確認更新 N 筆」（N 為整數，與 totalCount 一致）。
+            backend MUST 同時驗證：
+            1. confirmText 形如 `^確認更新\s*(\d+)\s*筆$`
+            2. 解析出的 N 等於 confirmCount
+            3. confirmCount 等於 BulkPreviewResponse.totalCount
+            任一條件不符時回應 409 並提示使用者重新輸入。
         confirmCount:
           type: integer
-          description: 使用者於確認對話框輸入的「將被更新筆數」，與 totalCount 不符時 backend 回 409
+          description: 使用者確認的「將被更新筆數」整數，必須等於 confirmText 中解析出的數字與 totalCount。
+
+    BulkOperationSummary:
+      type: object
+      description: 用於 GET /bulk/operations 列表呈現；不含每筆 issue 明細
+      required: [id, projectKey, targetField, totalCount, status, startedAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectKey: { type: string }
+        targetField:
+          type: string
+          enum: [assignee, due_date, label, priority, sprint]
+        totalCount: { type: integer }
+        successCount: { type: integer }
+        failureCount: { type: integer }
+        status:
+          type: string
+          enum: [running, success, partial_failure, failure, cancelled]
+        startedAt: { type: string, format: date-time }
+        completedAt: { type: string, format: date-time, nullable: true }
 
     BulkOperation:
       type: object

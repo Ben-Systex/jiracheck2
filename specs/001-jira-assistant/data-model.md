@@ -164,7 +164,7 @@ US4 批次更新的審計紀錄；保留 ≥ 1 年。
 | 表 | 保留期 | 清理方式 |
 |----|--------|----------|
 | `query_history` | 90 天 | 每日 03:00 排程 DELETE |
-| `bulk_update_operations` + `bulk_update_items` | 12 個月 | 每日 03:30 排程移到 `archive` schema |
+| `bulk_update_operations` + `bulk_update_items` | 12 個月 | 每日 03:30 排程移到 `archive` schema；`GET /bulk/operations` 列表僅查詢 `bulk_update_operations`（即近 12 個月內可見），歷史快照不需呈現於 UI |
 | `sessions` | 過期即刪 | 每小時清掃 `expires_at < now()` |
 | `recent_project_access` | 每使用者保留 100 筆 | upsert 時觸發 |
 | `user_tokens` | 隨 `users` | 使用者主動登出時或一年未活動時，呼叫 Atlassian revoke 並刪除 |
