@@ -77,22 +77,21 @@ export function createRecentAccessRepo(pool: Pool): RecentAccessRepo {
   };
 }
 
-// 採 keyset 方式：找出 user 的第 100 筆 last_accessed_at；早於該時間者刪除
+// 採 CTE keep：保留 last_accessed_at DESC 排序的前 N 筆 project_key，刪除其餘
+// 對「同一時間戳的多筆」邊界較直觀，避免 < cutoff 嚴格不等於造成漏刪
 async function pruneOver100Inner(client: PoolClient, userId: string): Promise<number> {
-  const { rows } = await client.query<{ last_accessed_at: Date }>(
-    `SELECT last_accessed_at
-     FROM recent_project_access
-     WHERE user_id = $1
-     ORDER BY last_accessed_at DESC
-     OFFSET $2 LIMIT 1`,
-    [userId, MAX_KEEP_PER_USER],
-  );
-  if (rows.length === 0) return 0;
-  const cutoff = rows[0]!.last_accessed_at;
   const { rowCount } = await client.query(
-    `DELETE FROM recent_project_access
-     WHERE user_id = $1 AND last_accessed_at < $2`,
-    [userId, cutoff],
+    `WITH keep AS (
+       SELECT project_key
+       FROM recent_project_access
+       WHERE user_id = $1
+       ORDER BY last_accessed_at DESC
+       LIMIT $2
+     )
+     DELETE FROM recent_project_access
+     WHERE user_id = $1
+       AND project_key NOT IN (SELECT project_key FROM keep)`,
+    [userId, MAX_KEEP_PER_USER],
   );
   return rowCount ?? 0;
 }

@@ -74,4 +74,5 @@ test-results/
 # Docker compose 本機產生
 ops/.env
 ops/.env.test
+ops/docker-compose.local.yml
 
