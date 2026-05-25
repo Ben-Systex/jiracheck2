@@ -49,41 +49,41 @@ description: "Task list for 001-jira-assistant implementation"
 
 ### Database Foundation
 
-- [ ] T008 建立 backend 資料庫遷移框架：採 `node-pg-migrate`，配置於 `backend/src/db/migrations/`，並提供 `npm run db:migrate` 指令於 `backend/package.json`
-- [ ] T009 [P] 建立首版 migration `backend/src/db/migrations/0001_init.sql`：建立 `users`、`user_tokens`、`sessions` 三張表（依 data-model.md schema 完整建立含索引）
-- [ ] T010 [P] 建立 migration `backend/src/db/migrations/0002_features.sql`：建立 `recent_project_access`、`query_history`、`bulk_update_operations`、`bulk_update_items` 表與索引（依 data-model.md）
-- [ ] T011 [P] 建立 DB 連線池於 `backend/src/db/pool.ts`（pg.Pool，採環境變數 `DATABASE_URL`），與 `backend/tests/integration/db.spec.ts` 的 Testcontainers 範例
+- [X] T008 建立 backend 資料庫遷移框架：採 `node-pg-migrate`，配置於 `backend/src/db/migrations/`，並提供 `npm run db:migrate` 指令於 `backend/package.json`
+- [X] T009 [P] 建立首版 migration `backend/src/db/migrations/0001_init.sql`：建立 `users`、`user_tokens`、`sessions` 三張表（依 data-model.md schema 完整建立含索引）
+- [X] T010 [P] 建立 migration `backend/src/db/migrations/0002_features.sql`：建立 `recent_project_access`、`query_history`、`bulk_update_operations`、`bulk_update_items` 表與索引（依 data-model.md）
+- [X] T011 [P] 建立 DB 連線池於 `backend/src/db/pool.ts`（pg.Pool，採環境變數 `DATABASE_URL`），與 `backend/tests/integration/db.spec.ts` 的 Testcontainers 範例
 
 ### Backend Cross-Cutting
 
-- [ ] T012 [P] 建立 logger 於 `backend/src/lib/logger.ts`（pino，根據 `LOG_LEVEL`），並暴露 request-scoped child logger middleware 於 `backend/src/middleware/request-context.ts`
-- [ ] T013 [P] 建立錯誤模型 `backend/src/lib/problem.ts`（RFC 7807 + `cause` 列舉），統一以 `application/problem+json` 回應；錯誤 i18n key 表放於 `backend/src/lib/i18n/zh-TW.ts`（憲法 III）
-- [ ] T014 [P] 設定 Express 中介層：`helmet`、`cors`（同源策略）、`cookie-parser`、`express.json({ limit: '256kb' })` 於 `backend/src/app.ts`
-- [ ] T015 [P] 建立 MCP client 於 `backend/src/mcp/client.ts`：使用 `@modelcontextprotocol/sdk` 的 `SSEClientTransport`，連到 `MCP_ATLASSIAN_URL`；提供 per-user session pool（key = userId、LRU + 15min idle timeout，依 research.md R-002）
-- [ ] T016 [P] 建立 MCP 契約 schemas 目錄 `backend/tests/contract/mcp/schemas/` 並放入 `list_projects.schema.json`、`search_issues.schema.json`、`bulk_edit.schema.json` 三個 JSON Schema 骨架（research.md R-009）
+- [X] T012 [P] 建立 logger 於 `backend/src/lib/logger.ts`（pino，根據 `LOG_LEVEL`），並暴露 request-scoped child logger middleware 於 `backend/src/middleware/request-context.ts`
+- [X] T013 [P] 建立錯誤模型 `backend/src/lib/problem.ts`（RFC 7807 + `cause` 列舉），統一以 `application/problem+json` 回應；錯誤 i18n key 表放於 `backend/src/lib/i18n/zh-TW.ts`（憲法 III）
+- [X] T014 [P] 設定 Express 中介層：`helmet`、`cors`（同源策略）、`cookie-parser`、`express.json({ limit: '256kb' })` 於 `backend/src/app.ts`
+- [X] T015 [P] 建立 MCP client 於 `backend/src/mcp/client.ts`：使用 `@modelcontextprotocol/sdk` 的 `SSEClientTransport`，連到 `MCP_ATLASSIAN_URL`；提供 per-user session pool（key = userId、LRU + 15min idle timeout，依 research.md R-002）
+- [X] T016 [P] 建立 MCP 契約 schemas 目錄 `backend/tests/contract/mcp/schemas/` 並放入 `list_projects.schema.json`、`search_issues.schema.json`、`bulk_edit.schema.json` 三個 JSON Schema 骨架（research.md R-009）
 
 ### Auth Foundation
 
-- [ ] T017 建立 OAuth 服務 `backend/src/services/auth/oauth.ts`：實作 Atlassian 3LO 流程（state 防偽、PKCE 可選）、access token 取得、refresh token 加密儲存 `user_tokens` 表（AES-256-GCM，金鑰 `TOKEN_ENC_KEY`）；依 research.md R-006
-- [ ] T018 建立 session middleware `backend/src/middleware/session.ts`：解析 `sid` cookie → 查 `sessions` 表 → 在 `req.user` 注入 user 與內部 token 取得函式；提供 sliding expiration（每次活動延 7 天）
-- [ ] T019 建立 auth routes `backend/src/routes/auth.ts`：`GET /api/v1/auth/login`、`GET /api/v1/auth/callback`、`POST /api/v1/auth/logout`（依 OpenAPI 規格）
-- [ ] T020 建立 `backend/src/routes/meta.ts` 含 `GET /api/v1/me`、`GET /api/v1/healthz`（healthz 不需登入）
+- [X] T017 建立 OAuth 服務 `backend/src/services/auth/oauth.ts`：實作 Atlassian 3LO 流程（state 防偽、PKCE 可選）、access token 取得、refresh token 加密儲存 `user_tokens` 表（AES-256-GCM，金鑰 `TOKEN_ENC_KEY`）；依 research.md R-006
+- [X] T018 建立 session middleware `backend/src/middleware/session.ts`：解析 `sid` cookie → 查 `sessions` 表 → 在 `req.user` 注入 user 與內部 token 取得函式；提供 sliding expiration（每次活動延 7 天）
+- [X] T019 建立 auth routes `backend/src/routes/auth.ts`：`GET /api/v1/auth/login`、`GET /api/v1/auth/callback`、`POST /api/v1/auth/logout`（依 OpenAPI 規格）
+- [X] T020 建立 `backend/src/routes/meta.ts` 含 `GET /api/v1/me`、`GET /api/v1/healthz`（healthz 不需登入）
 
 ### Auth Foundation — Tests
 
-- [ ] T021 [P] 撰寫契約測試 `backend/tests/contract/auth.spec.ts`：對 `/auth/callback` 與 `/me` 的 OpenAPI 回應 schema 進行 supertest 斷言
-- [ ] T022 [P] 撰寫整合測試 `backend/tests/integration/auth-flow.spec.ts`：以 Testcontainers PG + mock Atlassian token endpoint，驗證 login → callback → /me 全流程
+- [X] T021 [P] 撰寫契約測試 `backend/tests/contract/auth.spec.ts`：對 `/auth/callback` 與 `/me` 的 OpenAPI 回應 schema 進行 supertest 斷言
+- [X] T022 [P] 撰寫整合測試 `backend/tests/integration/auth-flow.spec.ts`：以 Testcontainers PG + mock Atlassian token endpoint，驗證 login → callback → /me 全流程
 
 ### Frontend Cross-Cutting
 
-- [ ] T023 [P] 建立設計系統元件目錄 `frontend/src/app/ui/`，新增 `button/`、`card/`、`empty-state/`、`error-state/`、`loading-state/`、`table/`（憲法 III「Loading/Empty/Error 三態」）
-- [ ] T024 [P] 配置 i18n locale zh-Hant-TW 於 `frontend/src/app/core/i18n/`（採 Angular `@angular/localize` 或自實作 service；user-facing 文字一律走 i18n key）
-- [ ] T025 [P] 建立 HTTP 模組於 `frontend/src/app/core/http/`：含 `BaseApiService`、`AuthInterceptor`（401 → 導向 `/auth/login`）、`ProblemErrorInterceptor`（將 RFC 7807 轉成統一錯誤 banner）
-- [ ] T026 [P] 建立 auth guard 與根路由配置於 `frontend/src/app/app.routes.ts`：未登入導向 `/login` 頁；建立 `frontend/src/app/features/login/login.page.ts`（單一按鈕「以 Atlassian 登入」）
-- [ ] T027 [P] 建立全站 shell 元件 `frontend/src/app/shell/`：含 header（顯示 `/me` 結果、登出鈕）、側欄導覽（Dashboard / NLQ / People / Bulk）
-- [ ] T028 [P] 整合 axe-core 至 Playwright 設定 `frontend/e2e/axe.config.ts`（憲法 III + IV）
-- [ ] T101 [P] 設計系統元件 `frontend/src/app/ui/freshness-bar/freshness-bar.component.ts`：對 FR-003 — 顯示 `dataFreshness.fetchedAt` 相對時間（例「2 分鐘前」）、`source` badge（live / cache）、與「重新整理」按鈕（emit refresh event；caller 重打 API 並帶 `?refresh=true`）。配套 unit test 於 `frontend/src/app/ui/freshness-bar/freshness-bar.component.spec.ts`
-- [ ] T102 [P] Backend 統一回應 envelope helper `backend/src/lib/data-freshness.ts`：提供 `withFreshness(payload, { fetchedAt, source, cacheTtlSeconds })`；所有對 Jira 取資料的 route 都透過此 helper 包回；並提供 `forceRefresh?: boolean` 來繞過 `services/jira/cache.ts` 的 LRU
+- [X] T023 [P] 建立設計系統元件目錄 `frontend/src/app/ui/`，新增 `button/`、`card/`、`empty-state/`、`error-state/`、`loading-state/`、`table/`（憲法 III「Loading/Empty/Error 三態」）
+- [X] T024 [P] 配置 i18n locale zh-Hant-TW 於 `frontend/src/app/core/i18n/`（採 Angular `@angular/localize` 或自實作 service；user-facing 文字一律走 i18n key）
+- [X] T025 [P] 建立 HTTP 模組於 `frontend/src/app/core/http/`：含 `BaseApiService`、`AuthInterceptor`（401 → 導向 `/auth/login`）、`ProblemErrorInterceptor`（將 RFC 7807 轉成統一錯誤 banner）
+- [X] T026 [P] 建立 auth guard 與根路由配置於 `frontend/src/app/app.routes.ts`：未登入導向 `/login` 頁；建立 `frontend/src/app/features/login/login.page.ts`（單一按鈕「以 Atlassian 登入」）
+- [X] T027 [P] 建立全站 shell 元件 `frontend/src/app/shell/`：含 header（顯示 `/me` 結果、登出鈕）、側欄導覽（Dashboard / NLQ / People / Bulk）
+- [X] T028 [P] 整合 axe-core 至 Playwright 設定 `frontend/e2e/axe.config.ts`（憲法 III + IV）
+- [X] T101 [P] 設計系統元件 `frontend/src/app/ui/freshness-bar/freshness-bar.component.ts`：對 FR-003 — 顯示 `dataFreshness.fetchedAt` 相對時間（例「2 分鐘前」）、`source` badge（live / cache）、與「重新整理」按鈕（emit refresh event；caller 重打 API 並帶 `?refresh=true`）。配套 unit test 於 `frontend/src/app/ui/freshness-bar/freshness-bar.component.spec.ts`
+- [X] T102 [P] Backend 統一回應 envelope helper `backend/src/lib/data-freshness.ts`：提供 `withFreshness(payload, { fetchedAt, source, cacheTtlSeconds })`；所有對 Jira 取資料的 route 都透過此 helper 包回；並提供 `forceRefresh?: boolean` 來繞過 `services/jira/cache.ts` 的 LRU
 
 **Checkpoint**: 任何 user story 都可在「已登入、shell 可用、http 與 problem 串好、MCP 連得到、DB schema 已套用、freshness-bar 與 cache helper 就緒」的基礎上開始實作。
 
@@ -97,22 +97,22 @@ description: "Task list for 001-jira-assistant implementation"
 
 ### Tests for User Story 1 ⚠️（憲法 II 必填，TDD：先紅後綠）
 
-- [ ] T029 [P] [US1] 契約測試 `backend/tests/contract/projects.spec.ts`：對 `GET /projects/recent`、`/projects/search`、`/projects/{key}` 對 OpenAPI 響應 schema 與 status code 斷言
-- [ ] T030 [P] [US1] 整合測試 `backend/tests/integration/recent-access.spec.ts`：呼叫 `/projects/{key}` 後 `recent_project_access` upsert 正確，且 `/projects/recent` 反映新排序
-- [ ] T031 [P] [US1] 整合測試 `backend/tests/integration/search-projects.spec.ts`：以 mock MCP 回 10 個專案 → 搜尋 `pay` 過濾出 3 筆
-- [ ] T032 [P] [US1] E2E 測試 `frontend/e2e/us1-dashboard.spec.ts`：完整黃金路徑 — 登入 → 看到提示 → 搜尋 → 點卡片 → 回首頁看到順序更新；含 axe-core 0 critical 斷言
+- [X] T029 [P] [US1] 契約測試 `backend/tests/contract/projects.spec.ts`：對 `GET /projects/recent`、`/projects/search`、`/projects/{key}` 對 OpenAPI 響應 schema 與 status code 斷言
+- [X] T030 [P] [US1] 整合測試 `backend/tests/integration/recent-access.spec.ts`：呼叫 `/projects/{key}` 後 `recent_project_access` upsert 正確，且 `/projects/recent` 反映新排序
+- [X] T031 [P] [US1] 整合測試 `backend/tests/integration/search-projects.spec.ts`：以 mock MCP 回 10 個專案 → 搜尋 `pay` 過濾出 3 筆
+- [X] T032 [P] [US1] E2E 測試 `frontend/e2e/us1-dashboard.spec.ts`：完整黃金路徑 — 登入 → 看到提示 → 搜尋 → 點卡片 → 回首頁看到順序更新；含 axe-core 0 critical 斷言
 
 ### Implementation for User Story 1
 
-- [ ] T033 [P] [US1] DB repository `backend/src/db/repositories/recent-access.ts`：`upsertAccess(userId, projectKey)`、`listRecent(userId, limit=5)`、`pruneOver100(userId)`（按 data-model.md 保留策略）
-- [ ] T034 [P] [US1] Service `backend/src/services/jira/projects.ts`：`listAccessibleProjects(userId, q?)`、`getProject(userId, key)`、`getDashboardMetrics(userId, key)` — 透過 MCP `list_projects` + `search_issues`（憲法 IV：批次化、避免 N+1）
-- [ ] T035 [US1] Route `backend/src/routes/projects.ts`：`GET /projects/recent`、`/projects/search?q`、`/projects/{key}`（最後一個於回應前 upsert `recent_project_access`）；3 條皆透過 T102 的 `withFreshness` helper 包回；皆支援 `?refresh=true` 繞過 cache（FR-003）
-- [ ] T036 [P] [US1] Frontend feature `frontend/src/app/features/dashboard/dashboard.page.ts`：使用 Angular signals + computed；採設計系統 ui 元件；含「最近 5 個」與「請使用搜尋」兩種狀態切換；於頁頂嵌入 `<freshness-bar>`（T101），refresh event 觸發重打 `/projects/recent?refresh=true`（FR-003）
-- [ ] T037 [P] [US1] Frontend 元件 `frontend/src/app/ui/project-card/project-card.component.ts`：顯示專案名/key/未完成數/Story Points 完成 doughnut（ng2-charts，lazy 註冊）
-- [ ] T038 [P] [US1] Frontend 搜尋輸入 `frontend/src/app/features/dashboard/search-box.component.ts`：採 RxJS debounce 500ms（符合 spec acceptance #3）
-- [ ] T039 [P] [US1] Frontend HTTP service `frontend/src/app/features/dashboard/projects-api.service.ts`：包 `/projects/recent`、`/projects/search`、`/projects/{key}` 三條 API
-- [ ] T040 [US1] 串接：在 `dashboard.page` 注入 `ProjectsApiService` 與設計系統 loading/empty/error 三態 wrapper；單一卡片點擊呼叫 `/projects/{key}` 後再 `router.navigate` 到 `/projects/:key`
-- [ ] T041 [US1] 補強：在 `dashboard.page` 與 `project-card` 中加入鍵盤導覽與 ARIA label（憲法 III + WCAG 2.1 AA）
+- [X] T033 [P] [US1] DB repository `backend/src/db/repositories/recent-access.ts`：`upsertAccess(userId, projectKey)`、`listRecent(userId, limit=5)`、`pruneOver100(userId)`（按 data-model.md 保留策略）
+- [X] T034 [P] [US1] Service `backend/src/services/jira/projects.ts`：`listAccessibleProjects(userId, q?)`、`getProject(userId, key)`、`getDashboardMetrics(userId, key)` — 透過 MCP `list_projects` + `search_issues`（憲法 IV：批次化、避免 N+1）
+- [X] T035 [US1] Route `backend/src/routes/projects.ts`：`GET /projects/recent`、`/projects/search?q`、`/projects/{key}`（最後一個於回應前 upsert `recent_project_access`）；3 條皆透過 T102 的 `withFreshness` helper 包回；皆支援 `?refresh=true` 繞過 cache（FR-003）
+- [X] T036 [P] [US1] Frontend feature `frontend/src/app/features/dashboard/dashboard.page.ts`：使用 Angular signals + computed；採設計系統 ui 元件；含「最近 5 個」與「請使用搜尋」兩種狀態切換；於頁頂嵌入 `<freshness-bar>`（T101），refresh event 觸發重打 `/projects/recent?refresh=true`（FR-003）
+- [X] T037 [P] [US1] Frontend 元件 `frontend/src/app/ui/project-card/project-card.component.ts`：顯示專案名/key/未完成數/Story Points 完成 doughnut（ng2-charts，lazy 註冊）
+- [X] T038 [P] [US1] Frontend 搜尋輸入 `frontend/src/app/features/dashboard/search-box.component.ts`：採 RxJS debounce 500ms（符合 spec acceptance #3）
+- [X] T039 [P] [US1] Frontend HTTP service `frontend/src/app/features/dashboard/projects-api.service.ts`：包 `/projects/recent`、`/projects/search`、`/projects/{key}` 三條 API
+- [X] T040 [US1] 串接：在 `dashboard.page` 注入 `ProjectsApiService` 與設計系統 loading/empty/error 三態 wrapper；單一卡片點擊呼叫 `/projects/{key}` 後再 `router.navigate` 到 `/projects/:key`
+- [X] T041 [US1] 補強：在 `dashboard.page` 與 `project-card` 中加入鍵盤導覽與 ARIA label（憲法 III + WCAG 2.1 AA）
 
 **Checkpoint**: US1 可獨立交付為 MVP；使用者可登入 → 搜尋 → 進入儀表板 → 首頁順序反映。
 

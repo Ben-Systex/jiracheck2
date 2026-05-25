@@ -20,7 +20,7 @@ export interface FreshnessOptions {
  * Caller 通常為 service / route，會把 `source = cache ? 'cache' : 'live'` 由
  * cache layer 標示後傳入此 helper。
  */
-export function withFreshness<T extends Record<string, unknown>>(
+export function withFreshness<T extends object>(
   payload: T,
   opts: FreshnessOptions,
 ): T & { dataFreshness: DataFreshness } {

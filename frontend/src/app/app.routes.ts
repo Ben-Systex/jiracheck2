@@ -16,6 +16,12 @@ export const routes: Routes = [
       {
         path: 'dashboard',
         loadComponent: () =>
+          import('./features/dashboard/dashboard.page').then((m) => m.DashboardPageComponent),
+        data: { titleKey: 'nav_dashboard' },
+      },
+      {
+        path: 'projects/:key',
+        loadComponent: () =>
           import('./shell/placeholder.component').then((m) => m.PlaceholderComponent),
         data: { titleKey: 'nav_dashboard' },
       },
