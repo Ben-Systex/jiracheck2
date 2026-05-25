@@ -13,14 +13,15 @@ const mcpUrl = process.env.MCP_ATLASSIAN_URL ?? 'http://mcp-atlassian:9000/sse';
 const factory = new SseMcpSessionFactory({ url: mcpUrl });
 const pool = new McpSessionPool({ factory });
 
+const acquireSession = async (userId: string) => {
+  const config = loadOAuthConfig();
+  const refreshed = await refreshAccessToken(userId, config, { pool: getPool() });
+  return pool.acquire(userId, refreshed.accessToken);
+};
+
 const app = createApp({
-  projectsDeps: {
-    acquireSession: async (userId) => {
-      const config = loadOAuthConfig();
-      const refreshed = await refreshAccessToken(userId, config, { pool: getPool() });
-      return pool.acquire(userId, refreshed.accessToken);
-    },
-  },
+  projectsDeps: { acquireSession },
+  peopleDeps: { acquireSession },
 });
 
 app.listen(port, () => {

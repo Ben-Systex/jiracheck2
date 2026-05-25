@@ -13,6 +13,7 @@ import { sessionMiddleware } from './middleware/session';
 import { authRouter } from './routes/auth';
 import { metaRouter } from './routes/meta';
 import { projectsRouter, type ProjectsDeps } from './routes/projects';
+import { peopleRouter, type PeopleDeps } from './routes/people';
 import { buildProblem, sendProblem, type ProblemDetails } from './lib/problem';
 
 export interface AppOptions {
@@ -20,6 +21,8 @@ export interface AppOptions {
   skipSession?: boolean;
   /** 注入 US1 projects route 之依賴；不提供時，需以另外的 router 工廠手動掛 */
   projectsDeps?: ProjectsDeps;
+  /** 注入 US3 people route 之依賴 */
+  peopleDeps?: PeopleDeps;
 }
 
 export function createApp(opts: AppOptions = {}): Express {
@@ -45,6 +48,9 @@ export function createApp(opts: AppOptions = {}): Express {
   app.use('/api/v1', metaRouter());
   if (opts.projectsDeps) {
     app.use('/api/v1', projectsRouter(opts.projectsDeps));
+  }
+  if (opts.peopleDeps) {
+    app.use('/api/v1', peopleRouter(opts.peopleDeps));
   }
 
   // 404 fallback

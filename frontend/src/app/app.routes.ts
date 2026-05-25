@@ -34,7 +34,7 @@ export const routes: Routes = [
       {
         path: 'people',
         loadComponent: () =>
-          import('./shell/placeholder.component').then((m) => m.PlaceholderComponent),
+          import('./features/people/people.page').then((m) => m.PeoplePageComponent),
         data: { titleKey: 'nav_people' },
       },
       {

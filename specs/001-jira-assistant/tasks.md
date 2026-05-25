@@ -161,22 +161,22 @@ description: "Task list for 001-jira-assistant implementation"
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T059 [P] [US3] 契約測試 `backend/tests/contract/people.spec.ts`：對 `/people/search`、`/people/{accountId}/issues`、`/people/{accountId}/stats` 響應 schema 斷言
-- [ ] T060 [P] [US3] 整合測試 `backend/tests/integration/people-issues.spec.ts`：跨專案任務匯總、`partialPermission` 旗標、分頁 cursor
-- [ ] T061 [P] [US3] 整合測試 `backend/tests/integration/people-stats.spec.ts`：以 mock issues 驗證 totals、byProject、estimateAccuracyRatio 計算正確
-- [ ] T062 [P] [US3] E2E 測試 `frontend/e2e/us3-people.spec.ts`：覆蓋 spec acceptance #1–#4
+- [X] T059 [P] [US3] 契約測試 `backend/tests/contract/people.spec.ts`：對 `/people/search`、`/people/{accountId}/issues`、`/people/{accountId}/stats` 響應 schema 斷言
+- [X] T060 [P] [US3] 整合測試 `backend/tests/integration/people-issues.spec.ts`：跨專案任務匯總、`partialPermission` 旗標、分頁 cursor
+- [X] T061 [P] [US3] 整合測試 `backend/tests/integration/people-stats.spec.ts`：以 mock issues 驗證 totals、byProject、estimateAccuracyRatio 計算正確
+- [X] T062 [P] [US3] E2E 測試 `frontend/e2e/us3-people.spec.ts`：覆蓋 spec acceptance #1–#4
 
 ### Implementation for User Story 3
 
-- [ ] T063 [P] [US3] Service `backend/src/services/jira/users.ts`：`searchUsers(q)`（呼叫 MCP user search）
-- [ ] T064 [P] [US3] Service `backend/src/services/jira/issues.ts`：`listByAssignee(userId, accountId, opts)`、`statsByAssignee(userId, accountId, from, to)`（含 SP / Actual SP 加總、估準度）
-- [ ] T065 [US3] Route `backend/src/routes/people.ts`：`/people/search`、`/people/{accountId}/issues`、`/people/{accountId}/stats`；後兩條皆透過 T102 `withFreshness` 包回，支援 `?refresh=true`（FR-003）
-- [ ] T066 [P] [US3] Frontend feature `frontend/src/app/features/people/people.page.ts`：含人員搜尋下拉、issue list、time range picker、stats card；於 issue list 與 stats card 上方各嵌入 `<freshness-bar>`（T101），refresh event 個別重打對應 API 並帶 `?refresh=true`（FR-003）
-- [ ] T067 [P] [US3] Frontend 元件 `frontend/src/app/features/people/stats-card/stats-card.component.ts`：含 ng2-charts 折線（SP vs Actual）+ 柱狀（完成數 by project）
-- [ ] T068 [P] [US3] Frontend HTTP service `frontend/src/app/features/people/people-api.service.ts`
-- [ ] T069 [US3] 串接：在 `people.page` 結合三條 API；分頁採 cursor + virtual scroll（憲法 IV）
-- [ ] T070 [US3] 在 issue list 中每列加入「跳到專案儀表板」連結（沿用 US1 的 `/projects/:key`）
-- [ ] T071 [US3] 補強：時區處理（依使用者瀏覽器或 Atlassian profile）、空集合提示「擴大到三個月」按鈕
+- [X] T063 [P] [US3] Service `backend/src/services/jira/users.ts`：`searchUsers(q)`（呼叫 MCP user search）
+- [X] T064 [P] [US3] Service `backend/src/services/jira/issues.ts`：`listByAssignee(userId, accountId, opts)`、`statsByAssignee(userId, accountId, from, to)`（含 SP / Actual SP 加總、估準度）
+- [X] T065 [US3] Route `backend/src/routes/people.ts`：`/people/search`、`/people/{accountId}/issues`、`/people/{accountId}/stats`；後兩條皆透過 T102 `withFreshness` 包回，支援 `?refresh=true`（FR-003）
+- [X] T066 [P] [US3] Frontend feature `frontend/src/app/features/people/people.page.ts`：含人員搜尋下拉、issue list、time range picker、stats card；於 issue list 與 stats card 上方各嵌入 `<freshness-bar>`（T101），refresh event 個別重打對應 API 並帶 `?refresh=true`（FR-003）
+- [X] T067 [P] [US3] Frontend 元件 `frontend/src/app/features/people/stats-card/stats-card.component.ts`：含 ng2-charts 折線（SP vs Actual）+ 柱狀（完成數 by project）
+- [X] T068 [P] [US3] Frontend HTTP service `frontend/src/app/features/people/people-api.service.ts`
+- [X] T069 [US3] 串接：在 `people.page` 結合三條 API；分頁採 cursor + virtual scroll（憲法 IV）
+- [X] T070 [US3] 在 issue list 中每列加入「跳到專案儀表板」連結（沿用 US1 的 `/projects/:key`）
+- [X] T071 [US3] 補強：時區處理（依使用者瀏覽器或 Atlassian profile）、空集合提示「擴大到三個月」按鈕
 
 **Checkpoint**: US3 可獨立交付；不依賴 US2 LLM 即可運作。
 
