@@ -22,6 +22,7 @@ const acquireSession = async (userId: string) => {
 const app = createApp({
   projectsDeps: { acquireSession },
   peopleDeps: { acquireSession },
+  bulkDeps: { acquireSession },
 });
 
 app.listen(port, () => {

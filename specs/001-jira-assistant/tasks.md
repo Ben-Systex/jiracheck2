@@ -190,28 +190,28 @@ description: "Task list for 001-jira-assistant implementation"
 
 ### Tests for User Story 4 ⚠️
 
-- [ ] T072 [P] [US4] 契約測試 `backend/tests/contract/bulk.spec.ts`：對 `/bulk/preview`、`/bulk/apply`、`/bulk/operations/{id}` 響應斷言
-- [ ] T073 [P] [US4] 單元測試 `backend/tests/unit/bulk-validate.spec.ts`：白名單欄位 (FR-047)、200 筆上限 (FR-046)、confirmText 正規式 `^確認更新\s*(\d+)\s*筆$`、confirmText 解析數字 vs confirmCount vs totalCount 三方比對（acceptance #4）
-- [ ] T074 [P] [US4] 整合測試 `backend/tests/integration/bulk-preview.spec.ts`：覆蓋 spec acceptance #1、#3（每筆權限標示）、#5（0 筆禁用套用）
-- [ ] T075 [P] [US4] 整合測試 `backend/tests/integration/bulk-apply.spec.ts`：覆蓋 #2（部分失敗）、版本衝突（edge case）、確認字串錯誤回 409
-- [ ] T076 [P] [US4] 整合測試 `backend/tests/integration/bulk-audit.spec.ts`：每次成功/失敗皆寫入 `bulk_update_operations` + `bulk_update_items`，可由 `/bulk/operations/{id}` 查詢
-- [ ] T077 [P] [US4] E2E `frontend/e2e/us4-bulk-preview.spec.ts`：完整 preview-only 流程；axe + keyboard
-- [ ] T078 [P] [US4] E2E `frontend/e2e/us4-bulk-apply.spec.ts`：apply 流程含確認對話框
+- [X] T072 [P] [US4] 契約測試 `backend/tests/contract/bulk.spec.ts`：對 `/bulk/preview`、`/bulk/apply`、`/bulk/operations/{id}` 響應斷言
+- [X] T073 [P] [US4] 單元測試 `backend/tests/unit/bulk-validate.spec.ts`：白名單欄位 (FR-047)、200 筆上限 (FR-046)、confirmText 正規式 `^確認更新\s*(\d+)\s*筆$`、confirmText 解析數字 vs confirmCount vs totalCount 三方比對（acceptance #4）
+- [X] T074 [P] [US4] 整合測試 `backend/tests/integration/bulk-preview.spec.ts`：覆蓋 spec acceptance #1、#3（每筆權限標示）、#5（0 筆禁用套用）
+- [X] T075 [P] [US4] 整合測試 `backend/tests/integration/bulk-apply.spec.ts`：覆蓋 #2（部分失敗）、版本衝突（edge case）、確認字串錯誤回 409
+- [X] T076 [P] [US4] 整合測試 `backend/tests/integration/bulk-audit.spec.ts`：每次成功/失敗皆寫入 `bulk_update_operations` + `bulk_update_items`，可由 `/bulk/operations/{id}` 查詢
+- [X] T077 [P] [US4] E2E `frontend/e2e/us4-bulk-preview.spec.ts`：完整 preview-only 流程；axe + keyboard
+- [X] T078 [P] [US4] E2E `frontend/e2e/us4-bulk-apply.spec.ts`：apply 流程含確認對話框
 
 ### Implementation for User Story 4
 
-- [ ] T079 [P] [US4] DB repository `backend/src/db/repositories/bulk-updates.ts`：`createOperation(...)`、`recordItem(...)`、`finalize(...)`、`getById(...)`、`pruneOlderThanMonths(months=12)`
-- [ ] T080 [P] [US4] Service `backend/src/services/bulk/preview.ts`：filter → JQL → MCP `search_issues` → 投影出 currentValue / proposedValue / editableByUser，發 `previewToken`（短期記憶體 + signed JWT，30 分鐘 TTL）
-- [ ] T081 [P] [US4] Service `backend/src/services/bulk/apply.ts`：解 previewToken → 三方比對（confirmText 解析數字 == confirmCount == totalCount，任一不符回 409）→ 對每筆呼叫 MCP `edit_issue`；採每筆獨立 try/catch，分類 `permission_denied` / `version_conflict` / `api_error`；最終 finalize 操作狀態
-- [ ] T082 [P] [US4] Validator `backend/src/services/bulk/validator.ts`：白名單欄位（assignee、due_date、label、priority、sprint）+ 上限 200 筆檢查
-- [ ] T083 [US4] Route `backend/src/routes/bulk.ts`：`POST /bulk/preview`、`POST /bulk/apply`、`GET /bulk/operations/{id}`；apply 採 `202 Accepted` + 背景作業
-- [ ] T084 [P] [US4] Frontend feature `frontend/src/app/features/bulk-update/bulk-update.page.ts`：分四步（選專案 → 條件 → 預覽 → 確認套用）；採 stepper UI
-- [ ] T085 [P] [US4] Frontend filter form `frontend/src/app/features/bulk-update/filter-form/`：欄位限定 Status / Assignee / Sprint / Issue Type / Label / Due Date
-- [ ] T086 [P] [US4] Frontend preview table `frontend/src/app/features/bulk-update/preview-table/`：含 currentValue/proposedValue 對比、editableByUser badge、totalCount 顯示、200 上限警示；於表頂顯示 `預覽於 {fetchedAt}` 並提供「重新預覽」按鈕（FR-003，獨立於 freshness-bar，因 preview token 會被廢棄需告知使用者）
-- [ ] T087 [P] [US4] Frontend confirm dialog `frontend/src/app/features/bulk-update/confirm-dialog/`：使用者必須完整輸入字串「確認更新 N 筆」；前端以正規式 `^確認更新\s*(\d+)\s*筆$` 解析後同送 `{confirmText, confirmCount}` 給 `/bulk/apply`；解析失敗即就地顯示錯誤、disable 套用鈕
-- [ ] T088 [P] [US4] Frontend operation polling service `frontend/src/app/features/bulk-update/operations.service.ts`：以指數退讓 polling `/bulk/operations/{id}` 直到 status 終態
-- [ ] T089 [US4] 串接：在 `bulk-update.page` 注入上述 service；維持 stepper 狀態於 component-local signal；錯誤一律走 ProblemErrorInterceptor 統一呈現
-- [ ] T090 [US4] 在 `bulk-update.page` 結尾頁顯示成功/失敗結果並提供「下載 CSV」連結（呼叫 `/bulk/operations/{id}?format=csv` — 此為 polish phase 擴充端點）
+- [X] T079 [P] [US4] DB repository `backend/src/db/repositories/bulk-updates.ts`：`createOperation(...)`、`recordItem(...)`、`finalize(...)`、`getById(...)`、`pruneOlderThanMonths(months=12)`
+- [X] T080 [P] [US4] Service `backend/src/services/bulk/preview.ts`：filter → JQL → MCP `search_issues` → 投影出 currentValue / proposedValue / editableByUser，發 `previewToken`（短期記憶體 + signed JWT，30 分鐘 TTL）
+- [X] T081 [P] [US4] Service `backend/src/services/bulk/apply.ts`：解 previewToken → 三方比對（confirmText 解析數字 == confirmCount == totalCount，任一不符回 409）→ 對每筆呼叫 MCP `edit_issue`；採每筆獨立 try/catch，分類 `permission_denied` / `version_conflict` / `api_error`；最終 finalize 操作狀態
+- [X] T082 [P] [US4] Validator `backend/src/services/bulk/validator.ts`：白名單欄位（assignee、due_date、label、priority、sprint）+ 上限 200 筆檢查
+- [X] T083 [US4] Route `backend/src/routes/bulk.ts`：`POST /bulk/preview`、`POST /bulk/apply`、`GET /bulk/operations/{id}`；apply 採 `202 Accepted` + 背景作業
+- [X] T084 [P] [US4] Frontend feature `frontend/src/app/features/bulk-update/bulk-update.page.ts`：分四步（選專案 → 條件 → 預覽 → 確認套用）；採 stepper UI
+- [X] T085 [P] [US4] Frontend filter form `frontend/src/app/features/bulk-update/filter-form/`：欄位限定 Status / Assignee / Sprint / Issue Type / Label / Due Date
+- [X] T086 [P] [US4] Frontend preview table `frontend/src/app/features/bulk-update/preview-table/`：含 currentValue/proposedValue 對比、editableByUser badge、totalCount 顯示、200 上限警示；於表頂顯示 `預覽於 {fetchedAt}` 並提供「重新預覽」按鈕（FR-003，獨立於 freshness-bar，因 preview token 會被廢棄需告知使用者）
+- [X] T087 [P] [US4] Frontend confirm dialog `frontend/src/app/features/bulk-update/confirm-dialog/`：使用者必須完整輸入字串「確認更新 N 筆」；前端以正規式 `^確認更新\s*(\d+)\s*筆$` 解析後同送 `{confirmText, confirmCount}` 給 `/bulk/apply`；解析失敗即就地顯示錯誤、disable 套用鈕
+- [X] T088 [P] [US4] Frontend operation polling service `frontend/src/app/features/bulk-update/operations.service.ts`：以指數退讓 polling `/bulk/operations/{id}` 直到 status 終態
+- [X] T089 [US4] 串接：在 `bulk-update.page` 注入上述 service；維持 stepper 狀態於 component-local signal；錯誤一律走 ProblemErrorInterceptor 統一呈現
+- [X] T090 [US4] 在 `bulk-update.page` 結尾頁顯示成功/失敗結果並提供「下載 CSV」連結（呼叫 `/bulk/operations/{id}?format=csv` — 此為 polish phase 擴充端點）
 
 **Checkpoint**: US4 可獨立交付；至此 4 個 user story 皆完成。
 

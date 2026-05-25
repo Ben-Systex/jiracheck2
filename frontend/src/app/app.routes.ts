@@ -40,7 +40,7 @@ export const routes: Routes = [
       {
         path: 'bulk',
         loadComponent: () =>
-          import('./shell/placeholder.component').then((m) => m.PlaceholderComponent),
+          import('./features/bulk-update/bulk-update.page').then((m) => m.BulkUpdatePageComponent),
         data: { titleKey: 'nav_bulk_update' },
       },
     ],
