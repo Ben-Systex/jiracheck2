@@ -15,6 +15,7 @@ import { metaRouter } from './routes/meta';
 import { projectsRouter, type ProjectsDeps } from './routes/projects';
 import { peopleRouter, type PeopleDeps } from './routes/people';
 import { bulkRouter, type BulkDeps } from './routes/bulk';
+import { nlqRouter, type NlqDeps } from './routes/nlq';
 import { buildProblem, sendProblem, type ProblemDetails } from './lib/problem';
 
 export interface AppOptions {
@@ -26,6 +27,8 @@ export interface AppOptions {
   peopleDeps?: PeopleDeps;
   /** 注入 US4 bulk route 之依賴 */
   bulkDeps?: BulkDeps;
+  /** 注入 US2 nlq route 之依賴（含 LLM 客戶端） */
+  nlqDeps?: NlqDeps;
 }
 
 export function createApp(opts: AppOptions = {}): Express {
@@ -57,6 +60,9 @@ export function createApp(opts: AppOptions = {}): Express {
   }
   if (opts.bulkDeps) {
     app.use('/api/v1', bulkRouter(opts.bulkDeps));
+  }
+  if (opts.nlqDeps) {
+    app.use('/api/v1', nlqRouter(opts.nlqDeps));
   }
 
   // 404 fallback

@@ -28,7 +28,7 @@ export const routes: Routes = [
       {
         path: 'nlq',
         loadComponent: () =>
-          import('./shell/placeholder.component').then((m) => m.PlaceholderComponent),
+          import('./features/nlq/nlq.page').then((m) => m.NlqPageComponent),
         data: { titleKey: 'nav_nlq' },
       },
       {

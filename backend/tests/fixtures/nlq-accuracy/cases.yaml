@@ -1,0 +1,162 @@
+# T103：NLQ accuracy fixture（對應 SC-002）
+# 至少 20 道中/英文問句測試集；分三大類：
+#   1. list（列出）  ≥ 6
+#   2. stats（count/sum/avg/top_n/group_count）  ≥ 6
+#   3. cross-project（跨專案）  ≥ 6
+# 每筆 expected.status：ok | clarification_needed
+# expected.intent / filters 為主軸欄位，runner 只比對主軸欄位（不要求 LLM 完全一致）。
+
+cases:
+  # ---- list（列出）------------------------------------------------------
+  - id: list-001
+    question: "列出 PAY 進行中的任務"
+    expected:
+      intent: list_issues
+      filters:
+        projectKeys: [PAY]
+        statuses: [In Progress]
+      status: ok
+
+  - id: list-002
+    question: "我在 BILL 還沒做完的任務"
+    expected:
+      intent: list_issues
+      filters:
+        projectKeys: [BILL]
+      status: ok
+
+  - id: list-003
+    question: "本月建立的 To Do 任務"
+    expected:
+      intent: list_issues
+      filters:
+        statuses: [To Do]
+      status: ok
+
+  - id: list-004
+    question: "Sprint 24 有哪些任務"
+    expected:
+      intent: list_issues
+      filters:
+        sprintNames: ["Sprint 24"]
+      status: ok
+
+  - id: list-005
+    question: "List my open issues in CORE"
+    expected:
+      intent: list_issues
+      filters:
+        projectKeys: [CORE]
+      status: ok
+
+  - id: list-006
+    question: "標記 hot 的所有任務"
+    expected:
+      intent: list_issues
+      filters:
+        labels: [hot]
+      status: ok
+
+  # ---- stats（統計）-----------------------------------------------------
+  - id: stat-001
+    question: "PAY 已完成多少筆"
+    expected:
+      intent: count_issues
+      filters:
+        projectKeys: [PAY]
+        statuses: [Done]
+      status: ok
+
+  - id: stat-002
+    question: "我本月完成的 Story Points 共計多少"
+    expected:
+      intent: sum_story_points
+      filters:
+        statuses: [Done]
+      status: ok
+
+  - id: stat-003
+    question: "本季 Actual Story Points 總和"
+    expected:
+      intent: sum_actual_story_points
+      filters: {}
+      status: ok
+
+  - id: stat-004
+    question: "本月平均 Story Points"
+    expected:
+      intent: avg_story_points
+      filters: {}
+      status: ok
+
+  - id: stat-005
+    question: "Top 5 任務最多的負責人"
+    expected:
+      intent: top_n_assignees
+      filters: {}
+      topN: 5
+      status: ok
+
+  - id: stat-006
+    question: "依狀態分組 PAY 的任務數量"
+    expected:
+      intent: group_count
+      filters:
+        projectKeys: [PAY]
+      groupBy: status
+      status: ok
+
+  - id: stat-007
+    question: "我做了多少"
+    expected:
+      status: clarification_needed
+
+  # ---- cross-project（跨專案）-------------------------------------------
+  - id: cross-001
+    question: "列出我所有專案的進行中任務"
+    expected:
+      intent: list_issues
+      filters: {}
+      status: ok
+
+  - id: cross-002
+    question: "PAY 和 BILL 已完成的任務數"
+    expected:
+      intent: count_issues
+      filters:
+        projectKeys: [PAY, BILL]
+        statuses: [Done]
+      status: ok
+
+  - id: cross-003
+    question: "依專案分組統計"
+    expected:
+      intent: group_count
+      filters: {}
+      groupBy: project
+      status: ok
+
+  - id: cross-004
+    question: "PAY/BILL/CORE 三個專案的 SP 加總"
+    expected:
+      intent: sum_story_points
+      filters:
+        projectKeys: [PAY, BILL, CORE]
+      status: ok
+
+  - id: cross-005
+    question: "Top 3 跨專案最忙的人"
+    expected:
+      intent: top_n_assignees
+      filters: {}
+      topN: 3
+      status: ok
+
+  - id: cross-006
+    question: "把 PROJ-B 的任務統計給我（使用者不能存取 PROJ-B 的情境）"
+    expected:
+      intent: count_issues
+      filters:
+        projectKeys: [PROJ-B]
+      status: ok
+      # 預期 runner 跑到時，mcp 會回 partialPermission；分類為 partial_permission

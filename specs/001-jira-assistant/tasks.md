@@ -126,28 +126,28 @@ description: "Task list for 001-jira-assistant implementation"
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T042 [P] [US2] 契約測試 `backend/tests/contract/nlq.spec.ts`：對 `POST /nlq/query` 三種狀態（`ok` / `clarification_needed` / `partial_permission`）的回應結構斷言
-- [ ] T043 [P] [US2] 單元測試 `backend/tests/unit/nlq-redactor.spec.ts`：對 redactor 移除疑似敏感欄位、保留 accountId 的行為斷言（research.md R-003）
-- [ ] T044 [P] [US2] 單元測試 `backend/tests/unit/nlq-query-plan.spec.ts`：對 QueryPlan zod schema 的合法/不合法輸入；以及 plan → 中文 explanation 字串的 snapshot 測試
-- [ ] T045 [P] [US2] 整合測試 `backend/tests/integration/nlq-flow.spec.ts`：以 mocked Anthropic + mocked MCP 完成「問句 → 計畫 → 執行 → 結果」全流程；涵蓋 spec acceptance #1–#4
-- [ ] T046 [P] [US2] E2E 測試 `frontend/e2e/us2-nlq.spec.ts`：黃金路徑（解讀 + 執行）+ clarification + partial_permission 三條路徑
-- [ ] T103 [P] [US2] NLQ accuracy fixture `backend/tests/fixtures/nlq-accuracy/cases.yaml`：對應 SC-002，至少 20 道事先準備的中/英文問句測試集。每筆含 `id / question / expected.intent / expected.filters / expected.status`（ok / clarification_needed）；分為三大類各 ≥ 6 筆：列出（list）、統計（count/sum/avg/top_n/group_count）、跨專案。
-- [ ] T104 [P] [US2] NLQ accuracy runner `backend/tests/integration/nlq-accuracy.spec.ts`：載入 T103 的 fixture；對每筆呼叫 NlqService（連真實 LLM 或可開關的 record/replay）；比對 intent / filters 主軸欄位；輸出 `nlq-accuracy.json` 報告（總筆數 / 正確 / clarification / 錯誤分類）。本地預設 skip 標籤 `@nightly`，CI nightly job 才跑。
+- [X] T042 [P] [US2] 契約測試 `backend/tests/contract/nlq.spec.ts`：對 `POST /nlq/query` 三種狀態（`ok` / `clarification_needed` / `partial_permission`）的回應結構斷言
+- [X] T043 [P] [US2] 單元測試 `backend/tests/unit/nlq-redactor.spec.ts`：對 redactor 移除疑似敏感欄位、保留 accountId 的行為斷言（research.md R-003）
+- [X] T044 [P] [US2] 單元測試 `backend/tests/unit/nlq-query-plan.spec.ts`：對 QueryPlan zod schema 的合法/不合法輸入；以及 plan → 中文 explanation 字串的 snapshot 測試
+- [X] T045 [P] [US2] 整合測試 `backend/tests/integration/nlq-flow.spec.ts`：以 mocked Anthropic + mocked MCP 完成「問句 → 計畫 → 執行 → 結果」全流程；涵蓋 spec acceptance #1–#4
+- [X] T046 [P] [US2] E2E 測試 `frontend/e2e/us2-nlq.spec.ts`：黃金路徑（解讀 + 執行）+ clarification + partial_permission 三條路徑
+- [X] T103 [P] [US2] NLQ accuracy fixture `backend/tests/fixtures/nlq-accuracy/cases.yaml`：對應 SC-002，至少 20 道事先準備的中/英文問句測試集。每筆含 `id / question / expected.intent / expected.filters / expected.status`（ok / clarification_needed）；分為三大類各 ≥ 6 筆：列出（list）、統計（count/sum/avg/top_n/group_count）、跨專案。
+- [X] T104 [P] [US2] NLQ accuracy runner `backend/tests/integration/nlq-accuracy.spec.ts`：載入 T103 的 fixture；對每筆呼叫 NlqService（連真實 LLM 或可開關的 record/replay）；比對 intent / filters 主軸欄位；輸出 `nlq-accuracy.json` 報告（總筆數 / 正確 / clarification / 錯誤分類）。本地預設 skip 標籤 `@nightly`，CI nightly job 才跑。
 
 ### Implementation for User Story 2
 
-- [ ] T047 [P] [US2] DB repository `backend/src/db/repositories/query-history.ts`：`insert(...)`、`pruneOlderThanDays(days=90)`
-- [ ] T048 [P] [US2] Redactor `backend/src/services/nlq/redactor.ts`：移除疑似 token / 個資 / 自訂內部 id；保留 displayName 與 accountId
-- [ ] T049 [P] [US2] QueryPlan schema `backend/src/services/nlq/query-plan.schema.ts`（zod，對應 OpenAPI 中的 `QueryPlan`；intent 必含 `list_issues / count_issues / sum_story_points / sum_actual_story_points / avg_story_points / avg_actual_story_points / top_n_assignees / group_count` 共 8 種，覆蓋 FR-022 五大統計）
-- [ ] T050 [P] [US2] Translator `backend/src/services/nlq/translator.ts`：QueryPlan → (a) MCP tool 呼叫序列、(b) 中文 explanation 字串
-- [ ] T051 [P] [US2] Anthropic client wrapper `backend/src/services/nlq/llm.ts`：採 `@anthropic-ai/sdk`，預設 `claude-sonnet-4-6`，啟用 prompt caching；system prompt 維護於 `backend/src/services/nlq/prompts/nlq.system.md`
-- [ ] T052 [US2] Service `backend/src/services/nlq/index.ts`：`analyze(question, userId)` 串接 redactor → llm → schema 驗證 → translator → executor；status 判斷邏輯（ok/clarification_needed/partial_permission/error）
-- [ ] T053 [US2] Route `backend/src/routes/nlq.ts`：`POST /nlq/query`；寫入 `query_history`；遵守 FR-025（唯讀）；若 `executeImmediately=true` 且 status=ok，回應中以 T102 的 `withFreshness` 附上 `dataFreshness`（FR-003）
-- [ ] T054 [P] [US2] Frontend feature `frontend/src/app/features/nlq/nlq.page.ts`：含輸入框（限 1000 字）、submit、explanation card、result viewport（依 intent 多型呈現）；result viewport 頂部嵌入 `<freshness-bar>`（T101），refresh event 重打同 question 並標示 `?refresh=true`（FR-003）
-- [ ] T055 [P] [US2] Frontend HTTP service `frontend/src/app/features/nlq/nlq-api.service.ts`
-- [ ] T056 [P] [US2] Frontend result renderer `frontend/src/app/features/nlq/result-renderer/`：對 8 種 intent 分別實作 sub-component — list_issues / count_issues / sum_story_points / sum_actual_story_points / avg_story_points / avg_actual_story_points / top_n_assignees / group_count（共用 number-card 與 issue-list 兩個 ui 元件）
-- [ ] T057 [US2] 串接：在 `nlq.page` 接 `NlqApiService`；對 `clarification_needed` 顯示後端提供的補充問題清單；對 `partial_permission` 顯示明確標示
-- [ ] T058 [US2] 補強：限制過長結果（>1000 筆）改提示縮小範圍（edge case）
+- [X] T047 [P] [US2] DB repository `backend/src/db/repositories/query-history.ts`：`insert(...)`、`pruneOlderThanDays(days=90)`
+- [X] T048 [P] [US2] Redactor `backend/src/services/nlq/redactor.ts`：移除疑似 token / 個資 / 自訂內部 id；保留 displayName 與 accountId
+- [X] T049 [P] [US2] QueryPlan schema `backend/src/services/nlq/query-plan.schema.ts`（zod，對應 OpenAPI 中的 `QueryPlan`；intent 必含 `list_issues / count_issues / sum_story_points / sum_actual_story_points / avg_story_points / avg_actual_story_points / top_n_assignees / group_count` 共 8 種，覆蓋 FR-022 五大統計）
+- [X] T050 [P] [US2] Translator `backend/src/services/nlq/translator.ts`：QueryPlan → (a) MCP tool 呼叫序列、(b) 中文 explanation 字串
+- [X] T051 [P] [US2] Anthropic client wrapper `backend/src/services/nlq/llm.ts`：採 `@anthropic-ai/sdk`，預設 `claude-sonnet-4-6`，啟用 prompt caching；system prompt 維護於 `backend/src/services/nlq/prompts/nlq.system.md`
+- [X] T052 [US2] Service `backend/src/services/nlq/index.ts`：`analyze(question, userId)` 串接 redactor → llm → schema 驗證 → translator → executor；status 判斷邏輯（ok/clarification_needed/partial_permission/error）
+- [X] T053 [US2] Route `backend/src/routes/nlq.ts`：`POST /nlq/query`；寫入 `query_history`；遵守 FR-025（唯讀）；若 `executeImmediately=true` 且 status=ok，回應中以 T102 的 `withFreshness` 附上 `dataFreshness`（FR-003）
+- [X] T054 [P] [US2] Frontend feature `frontend/src/app/features/nlq/nlq.page.ts`：含輸入框（限 1000 字）、submit、explanation card、result viewport（依 intent 多型呈現）；result viewport 頂部嵌入 `<freshness-bar>`（T101），refresh event 重打同 question 並標示 `?refresh=true`（FR-003）
+- [X] T055 [P] [US2] Frontend HTTP service `frontend/src/app/features/nlq/nlq-api.service.ts`
+- [X] T056 [P] [US2] Frontend result renderer `frontend/src/app/features/nlq/result-renderer/`：對 8 種 intent 分別實作 sub-component — list_issues / count_issues / sum_story_points / sum_actual_story_points / avg_story_points / avg_actual_story_points / top_n_assignees / group_count（共用 number-card 與 issue-list 兩個 ui 元件）
+- [X] T057 [US2] 串接：在 `nlq.page` 接 `NlqApiService`；對 `clarification_needed` 顯示後端提供的補充問題清單；對 `partial_permission` 顯示明確標示
+- [X] T058 [US2] 補強：限制過長結果（>1000 筆）改提示縮小範圍（edge case）
 
 **Checkpoint**: US2 可獨立交付；可在 US1 上線後任何時點疊加上去。
 

@@ -143,6 +143,33 @@ export const messages = {
   bulk_done_status_failure: '全部失敗（{n} 筆）',
   bulk_done_csv: '下載結果（CSV）',
   bulk_empty_no_match: '沒有符合條件的 issue，請調整條件後重新預覽。',
+
+  // NLQ（US2）
+  nlq_title: '自然語言查詢',
+  nlq_subtitle: '輸入問句（中/英皆可，最多 1000 字），系統會回應「我這樣理解」與結果。',
+  nlq_input_label: '輸入您的問題',
+  nlq_input_placeholder: '例如：列出 PAY 進行中的任務 / 本月完成的 Story Points 共計多少',
+  nlq_submit: '送出查詢',
+  nlq_explanation_heading: '我這樣理解您的問題',
+  nlq_result_heading: '查詢結果',
+  nlq_clarification_heading: '請補充以下資訊',
+  nlq_partial_permission: '部分結果因權限限制未顯示。',
+  nlq_truncated: '結果超過 1000 筆，請縮小範圍以取得完整結果。',
+  nlq_too_long: '問句長度超過上限 1000 字元，請精簡後再試。',
+  nlq_count_label: '筆數',
+  nlq_sum_label: '加總',
+  nlq_avg_label: '平均',
+  nlq_top_n_heading: 'Top N 負責人',
+  nlq_group_count_heading: '分組計數',
+  nlq_list_empty: '查無結果',
+  nlq_intent_label_list_issues: '任務列表',
+  nlq_intent_label_count_issues: '計數',
+  nlq_intent_label_sum_story_points: 'Story Points 加總',
+  nlq_intent_label_sum_actual_story_points: 'Actual Story Points 加總',
+  nlq_intent_label_avg_story_points: 'Story Points 平均',
+  nlq_intent_label_avg_actual_story_points: 'Actual Story Points 平均',
+  nlq_intent_label_top_n_assignees: 'Top N 負責人',
+  nlq_intent_label_group_count: '分組計數',
 } as const;
 
 export type MessageKey = keyof typeof messages;
