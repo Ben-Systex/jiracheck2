@@ -5,6 +5,7 @@ import express, { type Express } from 'express';
 import { projectsRouter, type ProjectsDeps } from '../../src/routes/projects';
 import { sendProblem, buildProblem } from '../../src/lib/problem';
 import type { RecentAccessRepo, RecentAccessRow } from '../../src/db/repositories/recent-access';
+import { JiraLruCache } from '../../src/services/jira/cache';
 
 export interface BuildOptions {
   userId?: string;
@@ -20,10 +21,13 @@ export function buildProjectsApp(opts: BuildOptions): Express {
     req.sessionUser = { userId: opts.userId ?? 'user-1', sid: 'test-sid' };
     next();
   });
+  // 每個 spec 用獨立 cache，避免互相污染
+  const cache = new JiraLruCache();
   app.use(
     '/api/v1',
     projectsRouter({
       acquireSession: opts.acquireSession,
+      cache,
       ...(opts.recentRepo ? { recentRepo: opts.recentRepo } : {}),
     }),
   );

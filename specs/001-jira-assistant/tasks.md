@@ -223,24 +223,24 @@ description: "Task list for 001-jira-assistant implementation"
 
 - [ ] T091 [P] 覆蓋率補強：補充 `backend/tests/unit/` 與 `frontend/src/**/*.spec.ts` 直至 c8 報告語句覆蓋率 ≥ 80%（憲法 II）
 - [ ] T092 [P] OpenTelemetry 追蹤：於 `backend/src/lib/telemetry.ts` 整合 OTel SDK；於關鍵路徑（auth、project listing、nlq、bulk）標 span；暴露 `/metrics` Prometheus 端點（憲法 IV）
-- [ ] T093 [P] Jira 呼叫快取：於 `backend/src/services/jira/cache.ts` 加入 LRU（key = userId + tool + args hash，TTL 60 秒）；於 plan 提到的 N+1 風險路徑（dashboard、people stats）使用
-- [ ] T094 [P] Rate limit：於 `backend/src/middleware/rate-limit.ts` 加入 IP + user 雙維度的 token bucket；對 `/nlq/query`、`/bulk/apply` 個別調低限額
-- [ ] T095 [P] CSRF 防護：對狀態變更端點（`/auth/logout`、`/bulk/apply`、`/bulk/preview`）採 double-submit cookie；同步更新 frontend interceptor
-- [ ] T096 [P] 排程清理 job `backend/src/jobs/cleanup.ts`：每日 03:00 跑 `query_history` 90 天刪除、`bulk_update_*` 12 個月歸檔、`sessions` 過期清掃
-- [ ] T097 [P] 文件補強：更新 repo `README.md`（zh-TW）含架構圖、各 service 簡介；補 `docs/` 內 OAuth 設定指引、Anthropic key 取得指引
-- [ ] T098 [P] i18n 字串審查：對 `frontend/src/app/**/*.html` 與 `backend/src/lib/i18n/zh-TW.ts` 全面盤點，確保無硬編碼英文 user-facing 字串（憲法 III）
-- [ ] T099 [P] 無障礙最終掃描：在 CI 中強制 axe-core E2E 報告 0 critical、0 serious；對 4 個 feature 各跑一次
+- [X] T093 [P] Jira 呼叫快取：於 `backend/src/services/jira/cache.ts` 加入 LRU（key = userId + tool + args hash，TTL 60 秒）；於 plan 提到的 N+1 風險路徑（dashboard、people stats）使用
+- [X] T094 [P] Rate limit：於 `backend/src/middleware/rate-limit.ts` 加入 IP + user 雙維度的 token bucket；對 `/nlq/query`、`/bulk/apply` 個別調低限額
+- [X] T095 [P] CSRF 防護：對狀態變更端點（`/auth/logout`、`/bulk/apply`、`/bulk/preview`）採 double-submit cookie；同步更新 frontend interceptor
+- [X] T096 [P] 排程清理 job `backend/src/jobs/cleanup.ts`：每日 03:00 跑 `query_history` 90 天刪除、`bulk_update_*` 12 個月歸檔、`sessions` 過期清掃
+- [X] T097 [P] 文件補強：更新 repo `README.md`（zh-TW）含架構圖、各 service 簡介；補 `docs/` 內 OAuth 設定指引、Anthropic key 取得指引
+- [X] T098 [P] i18n 字串審查：對 `frontend/src/app/**/*.html` 與 `backend/src/lib/i18n/zh-TW.ts` 全面盤點，確保無硬編碼英文 user-facing 字串（憲法 III）
+- [X] T099 [P] 無障礙最終掃描：在 CI 中強制 axe-core E2E 報告 0 critical、0 serious；對 4 個 feature 各跑一次
 - [ ] T100 執行 `specs/001-jira-assistant/quickstart.md` 完整 5 步驗證；補寫任何缺漏的 `.env.example` / docker compose 修正
-- [ ] T105 [P] CI nightly NLQ accuracy gate：於 `.github/workflows/nlq-accuracy.yml` 新增每日排程，跑 T104 的 `@nightly` runner；若「正確比例 < 90%」或「錯誤分類數 > 0」即 fail，並把 `nlq-accuracy.json` 上傳 artifact。對應 SC-002 之自動化驗證。
-- [ ] T106 [P] SC-007 跨權限抽測 fixture：於 `frontend/e2e/fixtures/permission-accounts.ts` 與 `ops/.env.test` 維護兩個測試帳號：`E2E_USER_LOW`（僅可見專案 PROJ-A）與 `E2E_USER_HIGH`（可見 PROJ-A + PROJ-B + PROJ-C）；於 CI secret store 注入。
-- [ ] T107 [P] SC-007 跨權限 E2E 測試 `frontend/e2e/sc007-permission-isolation.spec.ts`：以 `E2E_USER_LOW` 登入後，斷言：(a) `/projects/recent` 與 `/projects/search?q=PROJ-B` 皆看不到 PROJ-B、(b) 直接打 `/projects/PROJ-B` 回 404 problem、(c) `/people/{anyId}/issues` 結果只含 PROJ-A、(d) NLQ「列出 PROJ-B 的所有任務」回應 partial_permission 並標示。對應 SC-007「至少一次跨權限抽測」之自動化版本。
-- [ ] T108 [P] SC-001 效能 smoke test `backend/tests/perf/api-latency.k6.js`：以 k6 模擬 20 vu / 60 秒；對 `GET /projects/recent`、`GET /people/{accountId}/stats`、`POST /nlq/query` 三條主要查詢路徑量 p95；輸出 JSON 報告至 `backend/tests/perf/results/`。
-- [ ] T109 [P] SC-001 CI gate `.github/workflows/perf.yml`：對 main 分支與 release tag 跑 T108；fail 條件：`/projects/recent` p95 > 2 s、其餘讀取端點 p95 > 3 s、`POST /nlq/query` 端對端 p95 > 6 s（與 plan.md Performance Goals + Complexity Tracking 對齊）。報告 artifact 上傳。
-- [ ] T110 [P] [US4] Backend repository 補強 `backend/src/db/repositories/bulk-updates.ts`：新增 `listByUser(userId, { projectKey?, status?, cursor?, pageSize=20 })` 含 keyset cursor 分頁；對應 OpenAPI `BulkOperationSummary`。
-- [ ] T111 [P] [US4] Backend route 補強 `backend/src/routes/bulk.ts`：新增 `GET /api/v1/bulk/operations`（query: projectKey / status / cursor / pageSize）；對應 US4 acceptance #5「日後查核」。
-- [ ] T112 [P] [US4] 契約測試 `backend/tests/contract/bulk-history.spec.ts`：對 `GET /bulk/operations` 之 query 組合與分頁的響應 schema 斷言。
-- [ ] T113 [P] [US4] Frontend feature `frontend/src/app/features/bulk-update/history/history.page.ts`：列出當前使用者的批次更新歷史；可篩選專案、狀態；表格 row 點擊跳 `bulk/operations/{id}` 詳細頁；於頁頂引用 `<freshness-bar>`。串於 shell 側欄「批次更新 → 歷史」。
-- [ ] T114 [P] [US4] E2E `frontend/e2e/us4-bulk-history.spec.ts`：apply 完成後切換到歷史頁可看到該筆紀錄；篩選 status=success 後該筆仍可見；超過 12 個月之模擬資料不顯示（與 data-model 保留策略對齊）。
+- [X] T105 [P] CI nightly NLQ accuracy gate：於 `.github/workflows/nlq-accuracy.yml` 新增每日排程，跑 T104 的 `@nightly` runner；若「正確比例 < 90%」或「錯誤分類數 > 0」即 fail，並把 `nlq-accuracy.json` 上傳 artifact。對應 SC-002 之自動化驗證。
+- [X] T106 [P] SC-007 跨權限抽測 fixture：於 `frontend/e2e/fixtures/permission-accounts.ts` 與 `ops/.env.test` 維護兩個測試帳號：`E2E_USER_LOW`（僅可見專案 PROJ-A）與 `E2E_USER_HIGH`（可見 PROJ-A + PROJ-B + PROJ-C）；於 CI secret store 注入。
+- [X] T107 [P] SC-007 跨權限 E2E 測試 `frontend/e2e/sc007-permission-isolation.spec.ts`：以 `E2E_USER_LOW` 登入後，斷言：(a) `/projects/recent` 與 `/projects/search?q=PROJ-B` 皆看不到 PROJ-B、(b) 直接打 `/projects/PROJ-B` 回 404 problem、(c) `/people/{anyId}/issues` 結果只含 PROJ-A、(d) NLQ「列出 PROJ-B 的所有任務」回應 partial_permission 並標示。對應 SC-007「至少一次跨權限抽測」之自動化版本。
+- [X] T108 [P] SC-001 效能 smoke test `backend/tests/perf/api-latency.k6.js`：以 k6 模擬 20 vu / 60 秒；對 `GET /projects/recent`、`GET /people/{accountId}/stats`、`POST /nlq/query` 三條主要查詢路徑量 p95；輸出 JSON 報告至 `backend/tests/perf/results/`。
+- [X] T109 [P] SC-001 CI gate `.github/workflows/perf.yml`：對 main 分支與 release tag 跑 T108；fail 條件：`/projects/recent` p95 > 2 s、其餘讀取端點 p95 > 3 s、`POST /nlq/query` 端對端 p95 > 6 s（與 plan.md Performance Goals + Complexity Tracking 對齊）。報告 artifact 上傳。
+- [X] T110 [P] [US4] Backend repository 補強 `backend/src/db/repositories/bulk-updates.ts`：新增 `listByUser(userId, { projectKey?, status?, cursor?, pageSize=20 })` 含 keyset cursor 分頁；對應 OpenAPI `BulkOperationSummary`。
+- [X] T111 [P] [US4] Backend route 補強 `backend/src/routes/bulk.ts`：新增 `GET /api/v1/bulk/operations`（query: projectKey / status / cursor / pageSize）；對應 US4 acceptance #5「日後查核」。
+- [X] T112 [P] [US4] 契約測試 `backend/tests/contract/bulk-history.spec.ts`：對 `GET /bulk/operations` 之 query 組合與分頁的響應 schema 斷言。
+- [X] T113 [P] [US4] Frontend feature `frontend/src/app/features/bulk-update/history/history.page.ts`：列出當前使用者的批次更新歷史；可篩選專案、狀態；表格 row 點擊跳 `bulk/operations/{id}` 詳細頁；於頁頂引用 `<freshness-bar>`。串於 shell 側欄「批次更新 → 歷史」。
+- [X] T114 [P] [US4] E2E `frontend/e2e/us4-bulk-history.spec.ts`：apply 完成後切換到歷史頁可看到該筆紀錄；篩選 status=success 後該筆仍可見；超過 12 個月之模擬資料不顯示（與 data-model 保留策略對齊）。
 
 ---
 

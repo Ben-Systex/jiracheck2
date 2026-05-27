@@ -4,6 +4,7 @@
 import express, { type Express } from 'express';
 import { peopleRouter, type PeopleDeps } from '../../src/routes/people';
 import { sendProblem, buildProblem } from '../../src/lib/problem';
+import { JiraLruCache } from '../../src/services/jira/cache';
 
 export interface BuildOptions {
   userId?: string;
@@ -18,7 +19,8 @@ export function buildPeopleApp(opts: BuildOptions): Express {
     req.sessionUser = { userId: opts.userId ?? 'user-1', sid: 'test-sid' };
     next();
   });
-  app.use('/api/v1', peopleRouter({ acquireSession: opts.acquireSession }));
+  const cache = new JiraLruCache();
+  app.use('/api/v1', peopleRouter({ acquireSession: opts.acquireSession, cache }));
   app.use((_req, res) => {
     sendProblem(res, buildProblem('not_found', { detail: '路由不存在' }));
   });

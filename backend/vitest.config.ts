@@ -1,5 +1,8 @@
 import { defineConfig } from 'vitest/config';
 
+// 預設關閉 CSRF 強制（保留既有 supertest 測試行為；csrf.spec.ts 自行測該規則）
+process.env['BYPASS_CSRF'] ??= 'true';
+
 export default defineConfig({
   test: {
     globals: true,

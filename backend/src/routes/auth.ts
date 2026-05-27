@@ -17,6 +17,7 @@ import {
 } from '../services/auth/session';
 import { getPool } from '../db/pool';
 import { buildProblem, sendProblem } from '../lib/problem';
+import { verifyCsrfToken } from '../middleware/csrf';
 
 const STATE_COOKIE = 'oauth_state';
 const STATE_COOKIE_TTL_MS = 10 * 60 * 1000;
@@ -103,7 +104,7 @@ export function authRouter(configOverride?: OAuthConfig): Router {
     res.redirect(302, process.env.FRONTEND_HOME ?? 'http://localhost:4200/');
   }
 
-  router.post('/logout', async (req, res) => {
+  router.post('/logout', verifyCsrfToken, async (req, res) => {
     const sid = (req as { cookies?: Record<string, string> }).cookies?.[SESSION_COOKIE_NAME];
     if (sid) {
       try {

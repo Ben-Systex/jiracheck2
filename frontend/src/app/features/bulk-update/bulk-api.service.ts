@@ -74,6 +74,30 @@ export interface BulkOperationResponse {
   items: BulkOperationItem[];
 }
 
+export interface BulkOperationSummary {
+  id: string;
+  projectKey: string;
+  targetField: BulkTargetField;
+  totalCount: number;
+  successCount: number;
+  failureCount: number;
+  status: BulkOperationStatus;
+  startedAt: string;
+  completedAt: string | null;
+}
+
+export interface BulkOperationsListResponse {
+  items: BulkOperationSummary[];
+  nextCursor: string | null;
+}
+
+export interface ListOperationsOpts {
+  projectKey?: string;
+  status?: BulkOperationStatus;
+  cursor?: string;
+  pageSize?: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class BulkApiService {
   private readonly http = inject(HttpClient);
@@ -81,6 +105,18 @@ export class BulkApiService {
 
   preview(req: BulkPreviewRequest): Observable<BulkPreviewResponse> {
     return this.http.post<BulkPreviewResponse>(`${this.base}/bulk/preview`, req, {
+      withCredentials: true,
+    });
+  }
+
+  listOperations(opts: ListOperationsOpts = {}): Observable<BulkOperationsListResponse> {
+    const params: Record<string, string> = {};
+    if (opts.projectKey) params['projectKey'] = opts.projectKey;
+    if (opts.status) params['status'] = opts.status;
+    if (opts.cursor) params['cursor'] = opts.cursor;
+    if (opts.pageSize !== undefined) params['pageSize'] = String(opts.pageSize);
+    return this.http.get<BulkOperationsListResponse>(`${this.base}/bulk/operations`, {
+      params,
       withCredentials: true,
     });
   }

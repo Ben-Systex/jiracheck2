@@ -12,14 +12,14 @@ import type { MessageKey } from '../core/i18n/messages';
     <section class="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
       <h2 class="text-xl font-semibold text-slate-800">{{ title() }}</h2>
       <p class="mt-2 text-sm text-slate-500">
-        此頁面將於 Phase {{ phase() }} 完成；目前為功能骨架。
+        {{ i18n.t('placeholder_pending', { phase: phase() }) }}
       </p>
     </section>
   `,
 })
 export class PlaceholderComponent {
   private readonly route = inject(ActivatedRoute);
-  private readonly i18n = inject(I18nService);
+  protected readonly i18n = inject(I18nService);
 
   title(): string {
     const key = (this.route.snapshot.data['titleKey'] as MessageKey | undefined) ?? 'common_loading';

@@ -43,6 +43,12 @@ export const routes: Routes = [
           import('./features/bulk-update/bulk-update.page').then((m) => m.BulkUpdatePageComponent),
         data: { titleKey: 'nav_bulk_update' },
       },
+      {
+        path: 'bulk/history',
+        loadComponent: () =>
+          import('./features/bulk-update/history/history.page').then((m) => m.BulkHistoryPageComponent),
+        data: { titleKey: 'nav_bulk_history' },
+      },
     ],
   },
   { path: '**', redirectTo: '' },

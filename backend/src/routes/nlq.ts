@@ -6,6 +6,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/session';
+import { rateLimit } from '../middleware/rate-limit';
 import { buildProblem, sendProblem } from '../lib/problem';
 import { withFreshness } from '../lib/data-freshness';
 import { analyze, NlqError } from '../services/nlq';
@@ -32,7 +33,7 @@ export function nlqRouter(deps: NlqDeps): Router {
   const router = Router();
   const repo = deps.repo ?? createQueryHistoryRepo(getPool());
 
-  router.post('/nlq/query', requireAuth, async (req, res, next) => {
+  router.post('/nlq/query', requireAuth, rateLimit({ perMinute: 6 }), async (req, res, next) => {
     try {
       await handleNlqQuery(req, res, deps, repo);
     } catch (err) {

@@ -75,11 +75,32 @@ export interface BulkOperation {
   items: BulkOperationItem[];
 }
 
+export interface BulkOperationSummary {
+  id: string;
+  projectKey: string;
+  targetField: BulkTargetField;
+  totalCount: number;
+  successCount: number;
+  failureCount: number;
+  status: BulkOperationStatus;
+  startedAt: Date;
+  completedAt: Date | null;
+}
+
+export interface ListByUserArgs {
+  userId: string;
+  projectKey?: string;
+  status?: BulkOperationStatus;
+  cursor?: string;
+  pageSize?: number;
+}
+
 export interface BulkUpdatesRepo {
   createOperation(args: CreateOperationArgs): Promise<{ id: string }>;
   recordItem(args: RecordItemArgs): Promise<void>;
   finalize(args: FinalizeArgs): Promise<void>;
   getById(userId: string, operationId: string): Promise<BulkOperation | null>;
+  listByUser(args: ListByUserArgs): Promise<{ items: BulkOperationSummary[]; nextCursor: string | null }>;
 }
 
 export function createBulkUpdatesRepo(pool: Pool): BulkUpdatesRepo {
@@ -200,5 +221,78 @@ export function createBulkUpdatesRepo(pool: Pool): BulkUpdatesRepo {
         })),
       };
     },
+
+    async listByUser(args) {
+      const pageSize = Math.min(100, Math.max(1, args.pageSize ?? 20));
+      const conditions: string[] = ['user_id = $1'];
+      const params: unknown[] = [args.userId];
+      let i = 2;
+      if (args.projectKey) {
+        conditions.push(`project_key = $${i++}`);
+        params.push(args.projectKey);
+      }
+      if (args.status) {
+        conditions.push(`status = $${i++}`);
+        params.push(args.status);
+      }
+      const cursorDate = decodeListCursor(args.cursor);
+      if (cursorDate) {
+        conditions.push(`confirmed_at < $${i++}`);
+        params.push(cursorDate);
+      }
+      params.push(pageSize + 1);
+      const limitIdx = i;
+
+      const { rows } = await pool.query<{
+        id: string;
+        project_key: string;
+        target_field: BulkTargetField;
+        total_count: number;
+        success_count: number;
+        failure_count: number;
+        status: BulkOperationStatus;
+        confirmed_at: Date;
+        completed_at: Date | null;
+      }>(
+        `SELECT id, project_key, target_field, total_count,
+                success_count, failure_count, status, confirmed_at, completed_at
+         FROM bulk_update_operations
+         WHERE ${conditions.join(' AND ')}
+         ORDER BY confirmed_at DESC
+         LIMIT $${limitIdx}`,
+        params,
+      );
+
+      const items = rows.slice(0, pageSize).map((r) => ({
+        id: r.id,
+        projectKey: r.project_key,
+        targetField: r.target_field,
+        totalCount: r.total_count,
+        successCount: r.success_count,
+        failureCount: r.failure_count,
+        status: r.status,
+        startedAt: r.confirmed_at,
+        completedAt: r.completed_at,
+      }));
+      const last = items[items.length - 1];
+      const nextCursor = rows.length > pageSize && last ? encodeListCursor(last.startedAt) : null;
+      return { items, nextCursor };
+    },
   };
+}
+
+function encodeListCursor(d: Date): string {
+  return Buffer.from(JSON.stringify({ t: d.toISOString() }), 'utf8').toString('base64url');
+}
+
+function decodeListCursor(c: string | undefined): Date | null {
+  if (!c) return null;
+  try {
+    const obj = JSON.parse(Buffer.from(c, 'base64url').toString('utf8')) as { t?: unknown };
+    if (typeof obj.t !== 'string') return null;
+    const d = new Date(obj.t);
+    return Number.isFinite(d.getTime()) ? d : null;
+  } catch {
+    return null;
+  }
 }

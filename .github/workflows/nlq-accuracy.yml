@@ -1,0 +1,44 @@
+# T105：NLQ accuracy nightly gate
+# - 每日 02:00 UTC 跑（與 cleanup job 不衝）
+# - 對應 SC-002：「正確比例 < 90% 或錯誤分類數 > 0 即 fail」
+# - 報告以 artifact 上傳
+
+name: NLQ Accuracy Nightly
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  nlq-accuracy:
+    name: NLQ accuracy gate
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Run accuracy gate
+        env:
+          RUN_NLQ_ACCURACY: 'true'
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: npx vitest run tests/integration/nlq-accuracy.spec.ts
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nlq-accuracy-report
+          path: backend/tests/perf/results/nlq-accuracy.json
+          if-no-files-found: ignore

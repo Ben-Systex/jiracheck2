@@ -124,6 +124,30 @@ export function createInMemoryBulkRepo(): BulkUpdatesRepo & {
         items: [...op.items.values()].sort((a, b) => a.issueKey.localeCompare(b.issueKey)),
       };
     },
+    async listByUser(args) {
+      const pageSize = Math.min(100, Math.max(1, args.pageSize ?? 20));
+      const cursorTs = args.cursor ? Number(args.cursor) : Number.MAX_SAFE_INTEGER;
+      const all = [...byId.values()]
+        .filter((o) => o.userId === args.userId)
+        .filter((o) => !args.projectKey || o.projectKey === args.projectKey)
+        .filter((o) => !args.status || o.status === args.status)
+        .filter((o) => o.startedAt.getTime() < cursorTs)
+        .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime());
+      const items = all.slice(0, pageSize).map((o) => ({
+        id: o.id,
+        projectKey: o.projectKey,
+        targetField: o.targetField,
+        totalCount: o.totalCount,
+        successCount: o.successCount,
+        failureCount: o.failureCount,
+        status: o.status,
+        startedAt: o.startedAt,
+        completedAt: o.completedAt,
+      }));
+      const last = items[items.length - 1];
+      const nextCursor = all.length > pageSize && last ? String(last.startedAt.getTime()) : null;
+      return { items, nextCursor };
+    },
     __all: () => [...byId.values()],
     __idForUser: (userId) => [...byId.values()].find((o) => o.userId === userId)?.id,
     __get: (id) => byId.get(id),

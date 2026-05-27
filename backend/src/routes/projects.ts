@@ -24,10 +24,12 @@ import {
   type RecentAccessRepo,
 } from '../db/repositories/recent-access';
 import { getPool } from '../db/pool';
+import { getJiraCache, type JiraLruCache } from '../services/jira/cache';
 
 export interface ProjectsDeps {
   acquireSession: (userId: string) => Promise<McpSession>;
   recentRepo?: RecentAccessRepo;
+  cache?: JiraLruCache;
 }
 
 const projectKeySchema = z.string().regex(/^[A-Z][A-Z0-9_]+$/);
@@ -38,25 +40,36 @@ const searchQuerySchema = z.object({
 export function projectsRouter(deps: ProjectsDeps): Router {
   const router = Router();
   const recentRepo = deps.recentRepo ?? createRecentAccessRepo(getPool());
+  const cache = deps.cache ?? getJiraCache();
 
   router.get('/projects/recent', requireAuth, async (req, res, next) => {
     try {
       const userId = req.sessionUser!.userId;
-      // refresh=true 預留給 Phase 7 cache layer 用；目前皆走 live（無 cache）
-      parseForceRefresh(req.query['refresh']);
+      const forceRefresh = parseForceRefresh(req.query['refresh']);
       const recent = await recentRepo.listRecent(userId, 5);
-      const session = await deps.acquireSession(userId);
-      const enriched = await listRecentEnriched(
-        session,
-        recent.map((r) => r.projectKey),
+      const cached = await cache.getOrLoad(
+        { userId, tool: 'projects.recentEnriched', args: recent.map((r) => r.projectKey) },
+        async () => {
+          const session = await deps.acquireSession(userId);
+          return listRecentEnriched(session, recent.map((r) => r.projectKey));
+        },
+        { forceRefresh },
       );
-      const items = enriched.map((c) =>
+      const items = cached.value.map((c) =>
         withLastAccessed(
           c,
           recent.find((r) => r.projectKey === c.key)?.lastAccessedAt,
         ),
       );
-      res.json(withFreshness({ items }, { source: 'live' }));
+      res.json(
+        withFreshness(
+          { items },
+          {
+            source: cached.source,
+            ...(cached.cacheTtlSeconds !== undefined ? { cacheTtlSeconds: cached.cacheTtlSeconds } : {}),
+          },
+        ),
+      );
     } catch (err) {
       next(err);
     }
@@ -88,24 +101,31 @@ export function projectsRouter(deps: ProjectsDeps): Router {
     try {
       const key = projectKeySchema.safeParse(req.params['key']);
       if (!key.success) {
-        sendProblem(
-          res,
-          buildProblem('validation', { messageKey: 'error_validation' }),
-        );
+        sendProblem(res, buildProblem('validation', { messageKey: 'error_validation' }));
         return;
       }
       const userId = req.sessionUser!.userId;
-      const session = await deps.acquireSession(userId);
-      const dashboard = await getProject(session, key.data);
+      const forceRefresh = parseForceRefresh(req.query['refresh']);
+      const cached = await cache.getOrLoad(
+        { userId, tool: 'projects.getProject', args: key.data },
+        async () => {
+          const session = await deps.acquireSession(userId);
+          return getProject(session, key.data);
+        },
+        { forceRefresh },
+      );
+      const dashboard = cached.value;
       if (!dashboard) {
-        sendProblem(
-          res,
-          buildProblem('not_found', { messageKey: 'project_not_found' }),
-        );
+        sendProblem(res, buildProblem('not_found', { messageKey: 'project_not_found' }));
         return;
       }
       await recentRepo.upsertAccess(userId, key.data);
-      res.json(withFreshness(dashboard, { source: 'live' }));
+      res.json(
+        withFreshness(dashboard, {
+          source: cached.source,
+          ...(cached.cacheTtlSeconds !== undefined ? { cacheTtlSeconds: cached.cacheTtlSeconds } : {}),
+        }),
+      );
     } catch (err) {
       next(err);
     }

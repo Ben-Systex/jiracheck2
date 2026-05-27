@@ -10,6 +10,7 @@ import pinoHttp from 'pino-http';
 import { getLogger } from './lib/logger';
 import { requestContext } from './middleware/request-context';
 import { sessionMiddleware } from './middleware/session';
+import { issueCsrfToken } from './middleware/csrf';
 import { authRouter } from './routes/auth';
 import { metaRouter } from './routes/meta';
 import { projectsRouter, type ProjectsDeps } from './routes/projects';
@@ -49,6 +50,7 @@ export function createApp(opts: AppOptions = {}): Express {
   app.use(pinoHttp({ logger, customLogLevel: customLogLevel }));
 
   if (!opts.skipSession) app.use(sessionMiddleware);
+  app.use(issueCsrfToken);
 
   app.use('/api/v1/auth', authRouter());
   app.use('/api/v1', metaRouter());

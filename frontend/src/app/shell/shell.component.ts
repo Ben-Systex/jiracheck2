@@ -13,7 +13,7 @@ import { ButtonComponent } from '../ui/button/button.component';
     <div class="min-h-screen bg-slate-50">
       <header class="bg-white border-b border-slate-200">
         <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <a routerLink="/dashboard" class="text-lg font-semibold text-slate-900">Jira 小幫手</a>
+          <a routerLink="/dashboard" class="text-lg font-semibold text-slate-900">{{ i18n.t('app_brand') }}</a>
           <div class="flex items-center gap-3 text-sm">
             @if (auth.me(); as me) {
               <span class="text-slate-600">{{ me.displayName }}</span>
@@ -23,7 +23,7 @@ import { ButtonComponent } from '../ui/button/button.component';
         </div>
       </header>
       <div class="max-w-7xl mx-auto px-4 py-6 grid grid-cols-12 gap-6">
-        <nav aria-label="主要導覽" class="col-span-12 md:col-span-3 lg:col-span-2">
+        <nav [attr.aria-label]="i18n.t('nav_aria_main')" class="col-span-12 md:col-span-3 lg:col-span-2">
           <ul class="space-y-1 text-sm">
             <li>
               <a

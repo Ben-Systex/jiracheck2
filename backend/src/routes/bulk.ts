@@ -6,6 +6,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { requireAuth } from '../middleware/session';
+import { rateLimit } from '../middleware/rate-limit';
+import { verifyCsrfToken } from '../middleware/csrf';
 import { buildProblem, sendProblem } from '../lib/problem';
 import {
   createBulkUpdatesRepo,
@@ -62,7 +64,7 @@ export function bulkRouter(deps: BulkDeps): Router {
   const router = Router();
   const repo = deps.repo ?? createBulkUpdatesRepo(getPool());
 
-  router.post('/bulk/preview', requireAuth, async (req, res, next) => {
+  router.post('/bulk/preview', requireAuth, verifyCsrfToken, async (req, res, next) => {
     try {
       const parsed = previewBodySchema.safeParse(req.body);
       if (!parsed.success) {
@@ -94,7 +96,7 @@ export function bulkRouter(deps: BulkDeps): Router {
     }
   });
 
-  router.post('/bulk/apply', requireAuth, async (req, res, next) => {
+  router.post('/bulk/apply', requireAuth, verifyCsrfToken, rateLimit({ perMinute: 4 }), async (req, res, next) => {
     try {
       const parsed = applyBodySchema.safeParse(req.body);
       if (!parsed.success) {
@@ -119,6 +121,46 @@ export function bulkRouter(deps: BulkDeps): Router {
         sendApplyError(res, err);
         return;
       }
+      next(err);
+    }
+  });
+
+  router.get('/bulk/operations', requireAuth, async (req, res, next) => {
+    try {
+      const listSchema = z.object({
+        projectKey: z.string().optional(),
+        status: z.enum(['running', 'success', 'partial_failure', 'failure', 'cancelled']).optional(),
+        cursor: z.string().optional(),
+        pageSize: z.coerce.number().int().min(1).max(100).optional(),
+      });
+      const parsed = listSchema.safeParse(req.query);
+      if (!parsed.success) {
+        sendProblem(res, buildProblem('validation', { messageKey: 'error_validation' }));
+        return;
+      }
+      const userId = req.sessionUser!.userId;
+      const result = await repo.listByUser({
+        userId,
+        ...(parsed.data.projectKey ? { projectKey: parsed.data.projectKey } : {}),
+        ...(parsed.data.status ? { status: parsed.data.status } : {}),
+        ...(parsed.data.cursor ? { cursor: parsed.data.cursor } : {}),
+        ...(parsed.data.pageSize !== undefined ? { pageSize: parsed.data.pageSize } : {}),
+      });
+      res.json({
+        items: result.items.map((s) => ({
+          id: s.id,
+          projectKey: s.projectKey,
+          targetField: s.targetField,
+          totalCount: s.totalCount,
+          successCount: s.successCount,
+          failureCount: s.failureCount,
+          status: s.status,
+          startedAt: s.startedAt.toISOString(),
+          completedAt: s.completedAt ? s.completedAt.toISOString() : null,
+        })),
+        nextCursor: result.nextCursor,
+      });
+    } catch (err) {
       next(err);
     }
   });

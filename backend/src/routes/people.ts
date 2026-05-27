@@ -16,9 +16,11 @@ import {
   statsByAssignee,
 } from '../services/jira/issues';
 import type { McpSession } from '../mcp/types';
+import { getJiraCache, type JiraLruCache } from '../services/jira/cache';
 
 export interface PeopleDeps {
   acquireSession: (userId: string) => Promise<McpSession>;
+  cache?: JiraLruCache;
 }
 
 const accountIdSchema = z.string().min(1).max(128);
@@ -37,6 +39,7 @@ const statsQuerySchema = z.object({
 
 export function peopleRouter(deps: PeopleDeps): Router {
   const router = Router();
+  const cache = deps.cache ?? getJiraCache();
 
   router.get('/people/search', requireAuth, async (req, res, next) => {
     try {
@@ -69,16 +72,21 @@ export function peopleRouter(deps: PeopleDeps): Router {
         sendProblem(res, buildProblem('validation', { messageKey: 'error_validation' }));
         return;
       }
-      parseForceRefresh(req.query['refresh']);
-
+      const forceRefresh = parseForceRefresh(req.query['refresh']);
       const userId = req.sessionUser!.userId;
-      const session = await deps.acquireSession(userId);
-      const result = await listByAssignee(session, accountId.data, {
-        status: q.data.status,
-        pageSize: q.data.pageSize,
-        ...(q.data.cursor ? { cursor: q.data.cursor } : {}),
-      });
-
+      const cached = await cache.getOrLoad(
+        { userId, tool: 'people.listIssues', args: { accountId: accountId.data, ...q.data } },
+        async () => {
+          const session = await deps.acquireSession(userId);
+          return listByAssignee(session, accountId.data, {
+            status: q.data.status,
+            pageSize: q.data.pageSize,
+            ...(q.data.cursor ? { cursor: q.data.cursor } : {}),
+          });
+        },
+        { forceRefresh },
+      );
+      const result = cached.value;
       res.json(
         withFreshness(
           {
@@ -86,7 +94,10 @@ export function peopleRouter(deps: PeopleDeps): Router {
             nextCursor: result.nextCursor,
             partialPermission: result.partialPermission,
           },
-          { source: 'live' },
+          {
+            source: cached.source,
+            ...(cached.cacheTtlSeconds !== undefined ? { cacheTtlSeconds: cached.cacheTtlSeconds } : {}),
+          },
         ),
       );
     } catch (err) {
@@ -106,17 +117,22 @@ export function peopleRouter(deps: PeopleDeps): Router {
         sendProblem(res, buildProblem('validation', { messageKey: 'error_validation' }));
         return;
       }
-      parseForceRefresh(req.query['refresh']);
-
+      const forceRefresh = parseForceRefresh(req.query['refresh']);
       const userId = req.sessionUser!.userId;
-      const session = await deps.acquireSession(userId);
-      const stats = await statsByAssignee(
-        session,
-        accountId.data,
-        q.data.from,
-        q.data.to,
+      const cached = await cache.getOrLoad(
+        { userId, tool: 'people.stats', args: { accountId: accountId.data, from: q.data.from, to: q.data.to } },
+        async () => {
+          const session = await deps.acquireSession(userId);
+          return statsByAssignee(session, accountId.data, q.data.from, q.data.to);
+        },
+        { forceRefresh },
       );
-      res.json(withFreshness(stats, { source: 'live' }));
+      res.json(
+        withFreshness(cached.value, {
+          source: cached.source,
+          ...(cached.cacheTtlSeconds !== undefined ? { cacheTtlSeconds: cached.cacheTtlSeconds } : {}),
+        }),
+      );
     } catch (err) {
       next(err);
     }

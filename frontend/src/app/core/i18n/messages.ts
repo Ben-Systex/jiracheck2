@@ -144,6 +144,26 @@ export const messages = {
   bulk_done_csv: '下載結果（CSV）',
   bulk_empty_no_match: '沒有符合條件的 issue，請調整條件後重新預覽。',
 
+  // Bulk update history（US4 / T113）
+  bulk_history_title: '批次更新歷史',
+  bulk_history_subtitle: '近 12 個月內的批次更新紀錄；可依專案與結果狀態篩選。',
+  bulk_history_filter_project: '專案 Key（可選）',
+  bulk_history_filter_status: '結果狀態（可選）',
+  bulk_history_apply_filter: '套用篩選',
+  bulk_history_load_more: '載入更多',
+  bulk_history_empty_title: '沒有任何批次更新紀錄',
+  bulk_history_empty_description: '使用主流程完成批次更新後，紀錄會出現在此。',
+  bulk_history_table_at: '時間',
+  bulk_history_table_project: '專案',
+  bulk_history_table_field: '欄位',
+  bulk_history_table_total: '總筆數',
+  bulk_history_table_status: '狀態',
+  nav_bulk_history: '批次更新 → 歷史',
+  app_brand: 'Jira 小幫手',
+  nav_aria_main: '主要導覽',
+  error_unexpected: '發生未預期的錯誤，請稍後再試。',
+  placeholder_pending: '此頁面將於 Phase {phase} 完成；目前為功能骨架。',
+
   // NLQ（US2）
   nlq_title: '自然語言查詢',
   nlq_subtitle: '輸入問句（中/英皆可，最多 1000 字），系統會回應「我這樣理解」與結果。',
