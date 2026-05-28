@@ -13,6 +13,8 @@ import { redactForLlm } from './redactor';
 import { QueryPlanSchema, type QueryPlan } from './query-plan.schema';
 import { explainPlanZh, executePlan } from './translator';
 import type { LlmClient } from './llm';
+import { traceSpan } from '../../lib/telemetry';
+import { nlqQueryDuration } from '../../lib/metrics';
 
 export type NlqStatus = 'ok' | 'clarification_needed' | 'partial_permission' | 'error';
 
@@ -47,10 +49,23 @@ export class NlqError extends Error {
 const QUESTION_MAX = 1000;
 
 export async function analyze(args: AnalyzeArgs): Promise<AnalyzeResult> {
+  return traceSpan('nlq.analyze', async (span) => {
+    const result = await analyzeInner(args);
+    span.setAttribute('nlq.status', result.status);
+    span.setAttribute('nlq.result_count', result.resultCount);
+    span.setAttribute('nlq.truncated', result.truncated);
+    nlqQueryDuration.observe({ status: result.status }, result.latencyMs / 1000);
+    return result;
+  });
+}
+
+async function analyzeInner(args: AnalyzeArgs): Promise<AnalyzeResult> {
   const started = (args.now ?? Date.now)();
   validateQuestion(args.question);
   const { text: redacted } = redactForLlm(args.question);
-  const llmRes = await args.llm.complete({ question: redacted });
+  const llmRes = await traceSpan('nlq.llm.complete', () =>
+    args.llm.complete({ question: redacted }),
+  );
   const parsed = tryParseJson(llmRes.rawText);
 
   const elapsed = () => (args.now ?? Date.now)() - started;
@@ -68,7 +83,11 @@ export async function analyze(args: AnalyzeArgs): Promise<AnalyzeResult> {
   if (args.executeImmediately === false) {
     return planOnlyResult(plan, explanationZh, elapsed());
   }
-  const exec = await executePlan(args.session, plan);
+  const exec = await traceSpan(
+    'nlq.executePlan',
+    () => executePlan(args.session, plan),
+    { 'nlq.intent': plan.intent },
+  );
   return executedResult(plan, explanationZh, exec, elapsed());
 }
 

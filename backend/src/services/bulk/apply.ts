@@ -17,6 +17,8 @@ import type {
 } from '../../db/repositories/bulk-updates';
 import { verifyPreviewToken } from './token';
 import { verifyConfirmAlignment } from './validator';
+import { traceSpan } from '../../lib/telemetry';
+import { bulkOperationTotal } from '../../lib/metrics';
 
 export interface BulkApplyArgs {
   userId: string;
@@ -57,6 +59,13 @@ interface McpEditIssueResult {
 }
 
 export async function applyBulkUpdate(args: BulkApplyArgs): Promise<BulkApplyResult> {
+  return traceSpan('bulk.apply', (span) => {
+    span.setAttribute('bulk.user_id', args.userId);
+    return applyInner(args);
+  });
+}
+
+async function applyInner(args: BulkApplyArgs): Promise<BulkApplyResult> {
   const now = args.nowFn ?? (() => new Date());
 
   const verify = verifyPreviewToken(args.previewToken, args.userId);
@@ -138,6 +147,7 @@ async function executeAndFinalize(
     failureCount,
     completedAt: now(),
   });
+  bulkOperationTotal.inc({ status }, 1);
 }
 
 interface SingleOutcome {

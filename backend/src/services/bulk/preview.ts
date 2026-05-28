@@ -11,6 +11,7 @@ import {
   BULK_MAX_TOTAL,
 } from './validator';
 import { signPreviewToken, type PreviewTokenPayload } from './token';
+import { traceSpan } from '../../lib/telemetry';
 
 export interface BulkPreviewFilter {
   statuses?: string[];
@@ -69,6 +70,17 @@ interface McpSearchIssuesResult {
 // ---- public API -----------------------------------------------------------
 
 export async function previewBulkUpdate(
+  session: McpSession,
+  req: BulkPreviewRequest,
+): Promise<BulkPreviewResult> {
+  return traceSpan(
+    'bulk.preview',
+    () => previewInner(session, req),
+    { 'bulk.project': req.projectKey, 'bulk.target_field': req.targetField },
+  );
+}
+
+async function previewInner(
   session: McpSession,
   req: BulkPreviewRequest,
 ): Promise<BulkPreviewResult> {

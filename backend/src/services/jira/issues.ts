@@ -14,6 +14,7 @@
 
 import type { McpSession } from '../../mcp/types';
 import type { PersonRef } from './users';
+import { traceSpan } from '../../lib/telemetry';
 
 const JIRA_FIELD_STORY_POINTS =
   process.env.JIRA_FIELD_STORY_POINTS ?? 'customfield_10016';
@@ -111,6 +112,18 @@ export async function listByAssignee(
   accountId: string,
   opts: ListByAssigneeOptions = {},
 ): Promise<IssueListResult> {
+  return traceSpan(
+    'jira.issues.listByAssignee',
+    () => listByAssigneeInner(session, accountId, opts),
+    { 'jira.assignee.accountId': accountId, 'jira.issues.status': opts.status ?? 'open' },
+  );
+}
+
+async function listByAssigneeInner(
+  session: McpSession,
+  accountId: string,
+  opts: ListByAssigneeOptions,
+): Promise<IssueListResult> {
   const status = opts.status ?? 'open';
   const pageSize = clampPageSize(opts.pageSize);
   const startAt = decodeCursor(opts.cursor);
@@ -142,6 +155,19 @@ export async function listByAssignee(
 // ---- statsByAssignee -------------------------------------------------------
 
 export async function statsByAssignee(
+  session: McpSession,
+  accountId: string,
+  from: string,
+  to: string,
+): Promise<PersonStatsResult> {
+  return traceSpan(
+    'jira.issues.statsByAssignee',
+    () => statsByAssigneeInner(session, accountId, from, to),
+    { 'jira.assignee.accountId': accountId, 'jira.range.from': from, 'jira.range.to': to },
+  );
+}
+
+async function statsByAssigneeInner(
   session: McpSession,
   accountId: string,
   from: string,

@@ -7,6 +7,8 @@
 import { z } from 'zod';
 import { encryptToken, decryptToken } from './token-crypto';
 import type { Pool } from 'pg';
+import { traceSpan } from '../../lib/telemetry';
+import { authEventsTotal } from '../../lib/metrics';
 
 const AUTHORIZE_URL = 'https://auth.atlassian.com/authorize';
 const TOKEN_URL = 'https://auth.atlassian.com/oauth/token';
@@ -77,6 +79,18 @@ export interface OAuthDeps {
 }
 
 export async function exchangeCodeForTokens(
+  config: OAuthConfig,
+  code: string,
+  deps: OAuthDeps,
+): Promise<OAuthSession> {
+  return traceSpan('auth.oauth.exchange', async () => {
+    const result = await exchangeInner(config, code, deps);
+    authEventsTotal.inc({ event: 'callback_success' }, 1);
+    return result;
+  });
+}
+
+async function exchangeInner(
   config: OAuthConfig,
   code: string,
   deps: OAuthDeps,
@@ -184,6 +198,18 @@ export interface RefreshResult {
 
 /** 使用儲存的 refresh token 換新的 access token */
 export async function refreshAccessToken(
+  userId: string,
+  config: OAuthConfig,
+  deps: OAuthDeps,
+): Promise<RefreshResult> {
+  return traceSpan('auth.oauth.refresh', async () => {
+    const result = await refreshInner(userId, config, deps);
+    authEventsTotal.inc({ event: 'refresh' }, 1);
+    return result;
+  });
+}
+
+async function refreshInner(
   userId: string,
   config: OAuthConfig,
   deps: OAuthDeps,

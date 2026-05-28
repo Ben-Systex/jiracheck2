@@ -10,6 +10,7 @@
 // 注意：本 service 不主動依賴 DB pool；recent_project_access 由 route 在最後 upsert。
 
 import type { McpSession } from '../../mcp/types';
+import { traceSpan } from '../../lib/telemetry';
 
 const JIRA_FIELD_STORY_POINTS =
   process.env.JIRA_FIELD_STORY_POINTS ?? 'customfield_10016';
@@ -79,6 +80,17 @@ export async function listAccessibleProjects(
   session: McpSession,
   opts: ListProjectsOptions = {},
 ): Promise<ProjectCard[]> {
+  return traceSpan(
+    'jira.projects.list',
+    () => listAccessibleProjectsInner(session, opts),
+    { 'jira.search.q': opts.q, 'jira.enrich': opts.enrich ?? false },
+  );
+}
+
+async function listAccessibleProjectsInner(
+  session: McpSession,
+  opts: ListProjectsOptions,
+): Promise<ProjectCard[]> {
   const res = await session.callTool<McpListProjectsResult>({
     name: 'list_projects',
     arguments: opts.q ? { query: opts.q } : {},
@@ -127,6 +139,17 @@ export async function listRecentEnriched(
 }
 
 export async function getProject(
+  session: McpSession,
+  key: string,
+): Promise<ProjectDashboard | null> {
+  return traceSpan(
+    'jira.projects.get',
+    () => getProjectInner(session, key),
+    { 'jira.project.key': key },
+  );
+}
+
+async function getProjectInner(
   session: McpSession,
   key: string,
 ): Promise<ProjectDashboard | null> {

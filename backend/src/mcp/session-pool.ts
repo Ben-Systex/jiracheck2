@@ -3,8 +3,11 @@
 // - LRU：超過 maxSize 時，evict 最久未使用者
 // - idle timeout：每 5 秒掃描一次，超過 idleMs 未使用者主動關閉
 // - acquire 後不必 release：pool 用 idle timer 管理生命週期
+//
+// T092：包裝 callTool 以記錄 jira_mcp_call_duration_seconds metric
 
-import type { McpSession, McpSessionFactory } from './types';
+import type { McpSession, McpSessionFactory, McpToolCall, McpToolResult } from './types';
+import { jiraMcpCallDuration } from '../lib/metrics';
 
 interface PoolEntry {
   userId: string;
@@ -59,7 +62,8 @@ export class McpSessionPool {
     if (this.entries.size >= this.maxSize) {
       await this.evictOldest();
     }
-    const session = await this.opts.factory.create(userId, accessToken);
+    const rawSession = await this.opts.factory.create(userId, accessToken);
+    const session = wrapWithMetrics(rawSession);
     this.entries.set(userId, {
       userId,
       session,
@@ -116,4 +120,22 @@ async function safeClose(session: McpSession): Promise<void> {
   } catch {
     /* 吞掉：避免單一 session 關閉錯誤拖累整個 pool */
   }
+}
+
+/** 將原生 McpSession 包成可量測延遲的版本；tool 名為 label */
+function wrapWithMetrics(session: McpSession): McpSession {
+  return {
+    async callTool<T = unknown>(call: McpToolCall): Promise<McpToolResult<T>> {
+      const end = jiraMcpCallDuration.startTimer({ tool: call.name });
+      try {
+        const res = await session.callTool<T>(call);
+        end({ status: res.isError ? 'error' : 'success' });
+        return res;
+      } catch (err) {
+        end({ status: 'error' });
+        throw err;
+      }
+    },
+    close: () => session.close(),
+  };
 }

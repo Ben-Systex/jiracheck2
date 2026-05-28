@@ -12,7 +12,16 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.spec.ts', 'src/**/*.d.ts'],
+      // 排除：純 bootstrap / 外部 SDK wrapper / 純型別檔——
+      // 這些需要整合測試（docker / 真實 SDK）才有意義，單元測試只是反向重現邏輯。
+      exclude: [
+        'src/**/*.spec.ts',
+        'src/**/*.d.ts',
+        'src/server.ts',
+        'src/mcp/sse-session.ts',
+        'src/mcp/types.ts',
+        'src/services/nlq/llm.ts',
+      ],
       thresholds: {
         statements: 80,
         branches: 70,

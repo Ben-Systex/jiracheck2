@@ -13,15 +13,19 @@ import { sessionMiddleware } from './middleware/session';
 import { issueCsrfToken } from './middleware/csrf';
 import { authRouter } from './routes/auth';
 import { metaRouter } from './routes/meta';
+import { metricsRouter } from './routes/metrics';
 import { projectsRouter, type ProjectsDeps } from './routes/projects';
 import { peopleRouter, type PeopleDeps } from './routes/people';
 import { bulkRouter, type BulkDeps } from './routes/bulk';
 import { nlqRouter, type NlqDeps } from './routes/nlq';
 import { buildProblem, sendProblem, type ProblemDetails } from './lib/problem';
+import { httpMetricsMiddleware, initMetrics } from './lib/metrics';
 
 export interface AppOptions {
   /** 跳過需要 DB 的 middleware（session）— 用於不需要 DB 的單元測試 */
   skipSession?: boolean;
+  /** 跳過 metrics 初始化與 /metrics 路由（單元測試預設關閉避免污染 default registry） */
+  skipMetrics?: boolean;
   /** 注入 US1 projects route 之依賴；不提供時，需以另外的 router 工廠手動掛 */
   projectsDeps?: ProjectsDeps;
   /** 注入 US3 people route 之依賴 */
@@ -49,11 +53,17 @@ export function createApp(opts: AppOptions = {}): Express {
   app.use(requestContext);
   app.use(pinoHttp({ logger, customLogLevel: customLogLevel }));
 
+  if (!opts.skipMetrics) {
+    initMetrics();
+    app.use(httpMetricsMiddleware);
+  }
+
   if (!opts.skipSession) app.use(sessionMiddleware);
   app.use(issueCsrfToken);
 
   app.use('/api/v1/auth', authRouter());
   app.use('/api/v1', metaRouter());
+  if (!opts.skipMetrics) app.use('/api/v1', metricsRouter());
   if (opts.projectsDeps) {
     app.use('/api/v1', projectsRouter(opts.projectsDeps));
   }
