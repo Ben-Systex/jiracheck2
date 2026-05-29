@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://jiracheck.local/mcp/edit_issue.schema.json",
+  "title": "mcp-atlassian edit_issue 回應（單筆 issue 編輯）",
+  "type": "object",
+  "required": ["ok"],
+  "properties": {
+    "ok": { "type": "boolean" },
+    "key": { "type": "string" },
+    "error": {
+      "type": "object",
+      "required": ["code"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": ["permission_denied", "version_conflict", "api_error"]
+        },
+        "message": { "type": "string" }
+      }
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,6 @@
+{
+  "migration-file-language": "sql",
+  "migrations-dir": "src/db/migrations",
+  "schema": "public",
+  "database-url-var": "DATABASE_URL"
+}

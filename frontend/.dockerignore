@@ -1,0 +1,15 @@
+node_modules
+dist
+.angular
+coverage
+.git
+.gitignore
+.editorconfig
+.prettierignore
+.prettierrc.json
+eslint.config.js
+Dockerfile
+.dockerignore
+*.log
+.env*
+.vscode

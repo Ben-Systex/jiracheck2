@@ -60,3 +60,19 @@ dist/
 build/
 out/
 coverage/
+
+# Angular
+.angular/
+.ng_pkg_build/
+
+# 測試報告 / 效能報告
+backend/tests/perf/results/
+nlq-accuracy.json
+playwright-report/
+test-results/
+
+# Docker compose 本機產生
+ops/.env
+ops/.env.test
+ops/docker-compose.local.yml
+

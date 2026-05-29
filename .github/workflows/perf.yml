@@ -1,0 +1,42 @@
+# T109：k6 perf gate
+# - main 分支 push 與 release tag 觸發；對應 SC-001 / plan.md Performance Goals
+# - fail 條件：
+#     /projects/recent p95 > 2 s
+#     其餘讀取 p95 > 3 s
+#     POST /nlq/query 端對端 p95 > 6 s
+# - 報告以 artifact 上傳
+
+name: Performance smoke
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  k6:
+    name: k6 api-latency p95
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Run k6 smoke
+        env:
+          BASE_URL: ${{ secrets.PERF_BASE_URL }}
+          PERF_SID: ${{ secrets.PERF_SID }}
+        run: |
+          mkdir -p backend/tests/perf/results
+          k6 run \
+            --summary-export=backend/tests/perf/results/k6-summary.json \
+            backend/tests/perf/api-latency.k6.js
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-perf-report
+          path: backend/tests/perf/results/
