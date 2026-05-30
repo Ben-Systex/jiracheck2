@@ -1,0 +1,409 @@
+openapi: 3.1.0
+info:
+  title: Jira 小幫手 — 排程服務（002-scheduled-services）
+  version: 0.1.0
+  description: |
+    本檔為 002-scheduled-services feature 新增的 API。所有 endpoints 走
+    `/api/v1/...`，相容於 001-jira-assistant 的既有 OpenAPI（auth、session、CSRF、
+    problem+json 等共用機制不再重複定義）。
+
+    管理者權限：所有 endpoints（除 `/me` 擴充欄位外）皆要求呼叫者 accountId
+    在 `ADMIN_ACCOUNT_IDS` 環境變數白名單內，否則回 `403 Forbidden`（problem.cause=forbidden）。
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: 本機開發
+  - url: https://jiracheck.example.com/api/v1
+    description: Production（範例）
+
+tags:
+  - name: schedules
+    description: 排程設定 CRUD + 立即執行
+  - name: service-logs
+    description: 服務執行紀錄查詢 / 詳細 / 匯出
+  - name: project-check-lists
+    description: CHKPROJ 的輸入專案清單維護
+  - name: meta
+    description: 既有 /me 擴充欄位
+
+paths:
+  /schedules:
+    get:
+      tags: [schedules]
+      summary: 列出所有排程
+      parameters:
+        - in: query
+          name: enabled
+          schema: { type: boolean }
+        - in: query
+          name: serviceId
+          schema: { $ref: '#/components/schemas/ServiceId' }
+      responses:
+        '200':
+          description: 排程清單
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ScheduleConfig' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      tags: [schedules]
+      summary: 新增排程
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScheduleConfigInput' }
+      responses:
+        '201':
+          description: 已建立
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScheduleConfig' }
+        '400': { $ref: '#/components/responses/Validation' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /schedules/{scheduleId}:
+    parameters:
+      - in: path
+        name: scheduleId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [schedules]
+      summary: 取單一排程
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScheduleConfig' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [schedules]
+      summary: 更新排程（最後寫入者勝出 + 顯示警示）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ScheduleConfigInput' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScheduleConfig' }
+        '400': { $ref: '#/components/responses/Validation' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [schedules]
+      summary: 刪除排程（不影響歷史 service_logs）
+      responses:
+        '204': { description: 已刪除 }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /schedules/{scheduleId}/trigger:
+    parameters:
+      - in: path
+        name: scheduleId
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      tags: [schedules]
+      summary: 立即執行一次（FR-007；採非同步）
+      description: |
+        立即觸發該排程，回傳 `serviceLogId` 供前端 poll。執行本身於背景進行；
+        若同服務 ID 仍在執行中（advisory lock 取不到），會立即建立一筆
+        `result=skipped` 的紀錄並回傳該 id。
+      responses:
+        '202':
+          description: 已排入執行
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [serviceLogId]
+                properties:
+                  serviceLogId: { type: string, format: uuid }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /service-logs:
+    get:
+      tags: [service-logs]
+      summary: 列出執行紀錄（預設最近 7 天）
+      parameters:
+        - in: query
+          name: serviceId
+          schema: { $ref: '#/components/schemas/ServiceId' }
+        - in: query
+          name: result
+          schema: { $ref: '#/components/schemas/ServiceLogResult' }
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+          description: 預設 `now() - 7 days`
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+        - in: query
+          name: cursor
+          schema: { type: string }
+          description: keyset cursor（base64url JSON `{startedAt: ISO}`）
+        - in: query
+          name: pageSize
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200':
+          description: 紀錄清單 + 下一頁 cursor
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ServiceLogSummary' }
+                  nextCursor: { type: string, nullable: true }
+
+  /service-logs/{serviceLogId}:
+    parameters:
+      - in: path
+        name: serviceLogId
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [service-logs]
+      summary: 取單筆紀錄詳細（包含完整 summary / notes）
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceLogDetail' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /service-logs/export:
+    get:
+      tags: [service-logs]
+      summary: 匯出 CSV（套用相同過濾條件，stream）
+      parameters:
+        - in: query
+          name: serviceId
+          schema: { $ref: '#/components/schemas/ServiceId' }
+        - in: query
+          name: result
+          schema: { $ref: '#/components/schemas/ServiceLogResult' }
+        - in: query
+          name: from
+          schema: { type: string, format: date-time }
+        - in: query
+          name: to
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: CSV
+          content:
+            text/csv:
+              schema: { type: string }
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+              description: 'attachment; filename=service-logs-{ts}.csv'
+
+  /project-check-lists:
+    get:
+      tags: [project-check-lists]
+      summary: 列出目前要檢查的專案 keys
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/ProjectCheckListEntry' }
+    post:
+      tags: [project-check-lists]
+      summary: 加入一個專案
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [projectKey]
+              properties:
+                projectKey: { type: string }
+                note: { type: string }
+      responses:
+        '201':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ProjectCheckListEntry' }
+        '409': { description: 已存在；回 problem.cause=conflict }
+
+  /project-check-lists/{entryId}:
+    parameters:
+      - in: path
+        name: entryId
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      tags: [project-check-lists]
+      summary: 移除一個專案
+      responses:
+        '204': { description: 已刪除 }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /me:
+    get:
+      tags: [meta]
+      summary: 已登入使用者資訊（沿用 001 + 新增 isAdmin 欄位）
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accountId, displayName, isAdmin]
+                properties:
+                  accountId: { type: string }
+                  displayName: { type: string }
+                  email: { type: string, nullable: true }
+                  isAdmin:
+                    type: boolean
+                    description: 是否在 `ADMIN_ACCOUNT_IDS` 白名單內（v1）
+
+components:
+  schemas:
+    ServiceId:
+      type: string
+      enum: [CHKPROJ, CHKISSUE, SYSTEM_CLEANUP]
+      description: v1 固定服務集合；SYSTEM_CLEANUP 為內部寫入，不可由使用者排程
+
+    FrequencyType:
+      type: string
+      enum: [daily, weekly, monthly, cron]
+
+    ServiceLogResult:
+      type: string
+      enum: [success, partial_failure, failure, skipped, missed]
+
+    ServiceLogTriggeredBy:
+      type: string
+      enum: [schedule, manual, system]
+
+    ScheduleConfigInput:
+      type: object
+      required: [serviceId, frequencyType, frequencyValue, enabled]
+      properties:
+        serviceId: { $ref: '#/components/schemas/ServiceId' }
+        frequencyType: { $ref: '#/components/schemas/FrequencyType' }
+        frequencyValue:
+          type: string
+          description: |
+            - daily: `HH:MM`（例 `09:00`）
+            - weekly: `HH:MM:DOW`（DOW 1-7，週一=1，例 `09:30:1`）
+            - monthly: `HH:MM:DOM`（DOM 1-28，例 `09:00:1`）
+            - cron: 5 段或 6 段 cron expression（例 `0 9 * * *`）
+        enabled: { type: boolean }
+
+    ScheduleConfig:
+      allOf:
+        - $ref: '#/components/schemas/ScheduleConfigInput'
+        - type: object
+          required: [id, nextRunAt, createdAt, updatedAt, createdBy, updatedBy]
+          properties:
+            id: { type: string, format: uuid }
+            nextRunAt: { type: string, format: date-time, nullable: true }
+            lastRunAt: { type: string, format: date-time, nullable: true }
+            createdBy: { type: string, format: uuid }
+            updatedBy: { type: string, format: uuid }
+            createdAt: { type: string, format: date-time }
+            updatedAt: { type: string, format: date-time }
+
+    ServiceLogSummary:
+      type: object
+      required: [id, serviceId, triggeredBy, startedAt, result, summary]
+      properties:
+        id: { type: string, format: uuid }
+        scheduleId: { type: string, format: uuid, nullable: true }
+        serviceId: { $ref: '#/components/schemas/ServiceId' }
+        triggeredBy: { $ref: '#/components/schemas/ServiceLogTriggeredBy' }
+        startedAt: { type: string, format: date-time }
+        endedAt: { type: string, format: date-time, nullable: true }
+        result: { $ref: '#/components/schemas/ServiceLogResult' }
+        summary: { type: string, description: 列表頁顯示用（不截斷） }
+        ruleVersion: { type: string, nullable: true }
+
+    ServiceLogDetail:
+      allOf:
+        - $ref: '#/components/schemas/ServiceLogSummary'
+        - type: object
+          required: [notes]
+          properties:
+            notes:
+              type: object
+              description: |
+                結構化備註，typed 由各服務自訂。常見鍵：
+                - `errors[]`: 子步驟錯誤陣列（projectKey + message）
+                - `retry_count`: 重試次數總和
+                - `rule_version` (CHKPROJ)
+                - `delayed[]` (CHKPROJ)：延遲專案清單與觸發條件
+                - `with_issues[]` / `without_issues[]` (CHKISSUE)
+                - `empty_streak[]` (CHKISSUE)：連續 N 次無任務告警
+                - `cleanup_deleted` (SYSTEM_CLEANUP)：各表刪除筆數
+              additionalProperties: true
+
+    ProjectCheckListEntry:
+      type: object
+      required: [id, projectKey, addedBy, addedAt]
+      properties:
+        id: { type: string, format: uuid }
+        projectKey: { type: string }
+        addedBy: { type: string, format: uuid }
+        addedAt: { type: string, format: date-time }
+        note: { type: string, nullable: true }
+
+    Problem:
+      type: object
+      required: [type, title, status, cause]
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        cause:
+          type: string
+          enum: [validation, unauthorized, forbidden, not_found, conflict, rate_limit, internal, upstream]
+        messageKey: { type: string, description: i18n key（zh-TW；憲法 III） }
+
+  responses:
+    Unauthorized:
+      description: 未登入
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Forbidden:
+      description: 已登入但非管理者
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: 找不到資源
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Validation:
+      description: 請求驗證失敗（cron / frequency 格式錯）
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
