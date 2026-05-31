@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
+import { adminGuard } from './core/auth/admin.guard';
 
 export const routes: Routes = [
   {
@@ -48,6 +49,14 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/bulk-update/history/history.page').then((m) => m.BulkHistoryPageComponent),
         data: { titleKey: 'nav_bulk_history' },
+      },
+      // ---- 002-scheduled-services ----
+      {
+        path: 'schedules',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/schedules/schedules.page').then((m) => m.SchedulesPageComponent),
+        data: { titleKey: 'nav_schedules' },
       },
     ],
   },

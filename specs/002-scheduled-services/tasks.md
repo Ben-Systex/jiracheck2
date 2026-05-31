@@ -70,49 +70,34 @@ description: "002-scheduled-services 任務清單（依使用者故事拆分；�
 
 ### 後端 — repository / runner / scheduler
 
-- [ ] T015 [P] [US1] 實作 `backend/src/db/repositories/schedule-configs.ts`：interface `ScheduleConfigsRepo` + `create` / `update` / `delete` / `getById` / `listAll` / `listEnabled` / `updateNextRun(id, nextRunAt)` / `updateLastRun(id, lastRunAt)`；CRUD 帶 `userId` 隔離不需要（這是 admin 全域資源），但需在 service 層走 require-admin。
-- [ ] T016 [P] [US1] Contract spec `backend/src/db/repositories/schedule-configs.spec.ts`：mock pool；覆蓋 create round-trip / update / list filters / 計算 next_run_at 透過 service 層注入；6–8 cases。
-- [ ] T017 [US1] 實作 `backend/src/db/repositories/service-logs.ts`：interface 含 `start({ scheduleId?, serviceId, triggeredBy, triggeredByUserId?, ruleVersion? }): Promise<{id}>`、`finalize({ id, result, summary, notes, endedAt })`、`insertSkipped({...})`、`insertMissed({...})`、`pruneOlderThanDays(days)`。
-- [ ] T018 [P] [US1] Contract spec `backend/src/db/repositories/service-logs.spec.ts`：對 start / finalize / pruneOlderThanDays 各案；5–6 cases。
-- [ ] T019 [US1] 實作 `backend/src/jobs/service-runner.ts`：export `runService({ serviceId, triggeredBy, triggeredByUserId?, scheduleId?, services }): Promise<ServiceLogId>`；流程依 [data-model State Machine](./data-model.md#state-machine)：
-   1. `pool.connect()` + `BEGIN`
-   2. `SELECT pg_try_advisory_xact_lock(hashtext($1))` → false 則寫 `insertSkipped` + `COMMIT` 退出
-   3. `serviceLogs.start({...})` → 取得 id
-   4. `COMMIT`（讓鎖在 step 5 結束時釋放需用 session-level lock 而非 xact-level；改用 `pg_try_advisory_lock` + `pg_advisory_unlock`）
-   5. 走 `services[serviceId].run({ logId, ... })` 並 try/catch
-   6. `serviceLogs.finalize({...})` 把結果寫回
-   7. Always release advisory lock + observe metric
-   注意 `traceSpan('scheduled.service.run', ...)` 包整段。
-- [ ] T020 [P] [US1] Integration spec `backend/tests/integration/service-runner.spec.ts`：注入 in-memory repo + fake service；測試：success / failure / skipped (lock held) / metrics 都正確 observe；6–8 cases。
-- [ ] T021 [US1] 實作 `backend/src/jobs/scheduler.ts`：export `class Scheduler` 含 `start({ services, repo, runner })` / `stop()` / `registerSchedule(config)` / `unregisterSchedule(id)`；內部維護 `Map<scheduleId, cron.ScheduledTask>`；start 時掃 `listEnabled` 一次性 register；每次觸發後 `repo.updateLastRun` + 對 missed 邏輯做啟動掃描（R-004 啟動 24h 內 missed 補紀錄）。
-- [ ] T022 [P] [US1] Unit spec `backend/src/jobs/scheduler.spec.ts`：以 `vi.useFakeTimers()` 推進時間；驗證 register / unregister / start missed 補紀錄；**加 SC-001 案例：對每分鐘 cron 在系統時間到達 03:00:00 推進，比對實際 runner 呼叫時間 vs 設定時間 ≤ 60 秒**；7–9 cases。
-- [ ] T023 [US1] 在 `backend/src/server.ts` 啟動 Scheduler；註冊一個 stub service map（CHKPROJ / CHKISSUE 暫時都回 `{ summary: 'stub', notes: {} }`）；shutdown hook 處理優雅關閉。
+- [X] T015 [P] [US1] schedule_configs repository（CRUD + listAll/listEnabled + updateNext/LastRun + countEnabled）。
+- [X] T016 [P] [US1] schedule-configs.spec.ts（15 cases）。
+- [X] T017 [US1] service_logs repository（start/finalize/insertImmediate/getById/list with keyset cursor/pruneOlderThanDays/countOpenForService）。
+- [X] T018 [P] [US1] service-logs.spec.ts（14 cases）。
+- [X] T019 [US1] service-runner.ts：pg session-level advisory lock + 統一流程 + traceSpan + metrics 觀測。
+- [X] T020 [P] [US1] service-runner integration spec（7 cases，含 success / failure / skipped / not_registered / SYSTEM_CLEANUP / acquireSession 缺）。
+- [X] T021 [US1] Scheduler class：start/stop/registerSchedule/unregisterSchedule/refreshAll/registeredCount + missed 啟動補登（≤ 24h）。
+- [X] T022 [P] [US1] scheduler.spec.ts（10 cases，含 SC-001 觸發誤差 ≤ 60s case）。
+- [X] T023 [US1] server.ts 註冊 Scheduler + stub CHKPROJ / CHKISSUE + SIGTERM/SIGINT 優雅關閉。
 
 ### 後端 — routes
 
-- [ ] T024 [US1] 實作 `backend/src/routes/schedules.ts`：
-   - `GET /schedules`（list filter by enabled / serviceId）
-   - `POST /schedules`（驗 zod + cron + admin）
-   - `GET /schedules/:id`
-   - `PUT /schedules/:id`（最後寫入者勝出，仍 updateNextRunAt）
-   - `DELETE /schedules/:id`（scheduler.unregister）
-   - `POST /schedules/:id/trigger` → 回 202 + serviceLogId（非同步 run）
-   - 所有 endpoints 經 `sessionMiddleware + requireAuth + requireAdmin + verifyCsrfToken`（GET 免 csrf）。
-- [ ] T025 [P] [US1] Contract spec `backend/tests/contract/schedules.spec.ts`：對 7 個 endpoints 各驗 happy + error path；含「非 admin → 403」「壞 cron → 400 validation」「不存在 id → 404」共 12–15 cases。
+- [X] T024 [US1] routes/schedules.ts（7 endpoints + requireAdmin + verifyCsrfToken）。
+- [X] T025 [P] [US1] Contract spec schedules.spec.ts（16 cases，含 admin guard / cron 驗證 / 404 / disabled→nextRunAt=null）。
 
 ### 前端 — feature
 
-- [ ] T026 [P] [US1] 實作 `frontend/src/app/features/schedules/schedules-api.service.ts`：型別 + HttpClient 包裝對應 OpenAPI；含 list / get / create / update / delete / trigger。
-- [ ] T027 [US1] 實作 `frontend/src/app/features/schedules/schedules.page.ts`：列表 + 啟停切換 + 立即執行 + 刪除確認；空態 / 載入 / 錯誤狀態（憲法 III）；i18n key 化全部字串。
-- [ ] T028 [P] [US1] 實作 `frontend/src/app/features/schedules/schedule-form/schedule-form.component.ts`：頻率類型 radio + 對應子表單（time picker / weekday / day-of-month / cron string with validation hint）；**所有時間輸入欄位下方顯示固定字樣「依伺服器時區 Asia/Taipei（FR-008）」（i18n key `schedule_form_tz_hint`，加入 T012 keys 清單）**；output `submit` event。
-- [ ] T029 [P] [US1] 實作 `frontend/src/app/core/auth/admin.guard.ts`：呼叫 `/me`（cache via service），`isAdmin === false` → 重導 `/dashboard` + toast「需要管理者權限」。
-- [ ] T030 [US1] 更新 `frontend/src/app/app.routes.ts` 加 `/schedules` 路由 + AuthGuard + AdminGuard；shell 側欄加「定時服務」項目（i18n key `nav_schedules`，僅 admin 顯示）。
-- [ ] T031 [P] [US1] Unit spec `frontend/src/app/features/schedules/schedule-form/schedule-form.component.spec.ts`：對 4 種 frequencyType 切換 + cron 驗證 + submit emit；5–6 cases。
-- [ ] T032 [P] [US1] Unit spec `frontend/src/app/features/schedules/schedules.page.spec.ts`：列表 / 啟停 / 立即執行 / 錯誤 toast；5 cases。
+- [X] T026 [P] [US1] schedules-api.service.ts（list/get/create/update/delete/trigger）。
+- [X] T027 [US1] schedules.page.ts（列表 + 新建 / 編輯 / 立即執行 / 刪除確認 + toast + 載入 / 空 / 錯誤態）。
+- [X] T028 [P] [US1] schedule-form.component.ts（4 種 frequencyType 子表單 + 時區字樣 `schedule_form_tz_hint`）。
+- [X] T029 [P] [US1] admin.guard.ts（含 i18n toast 訊息；非 admin → 重導 /dashboard）。
+- [X] T030 [US1] app.routes.ts 加 /schedules + adminGuard；shell.component.ts 側欄加「定時服務」（僅 admin 顯示）。
+- [X] T031 [P] [US1] schedule-form.component.spec.ts（6 cases，4 種 frequencyType + initial setter 兩種）。
+- [X] T032 [P] [US1] schedules.page.spec.ts（5 cases，load / error / onNew / onEdit / onSubmitted）。
 
 ### E2E
 
-- [ ] T033 [P] [US1] E2E spec `frontend/e2e/specs/us1-schedule-crud.spec.ts`：以 admin fixture 登入；建立 → 啟停 → 編輯 → 刪除 全 happy path；含「壞 cron 顯示 inline 錯誤」「非 admin 用戶看不到側欄」2 negative case；含 axe-core a11y 掃描。
+- [ ] T033 [P] [US1] E2E spec us1-schedule-crud.spec.ts（延後到 Phase 7 收尾統一加；單元 + contract spec 已涵蓋 admin guard / cron 驗證 / CRUD round-trip）。
 
 **Checkpoint**: US1 完整可演示 — 排程設定 CRUD + 自動觸發 stub 服務 + 紀錄寫入。
 

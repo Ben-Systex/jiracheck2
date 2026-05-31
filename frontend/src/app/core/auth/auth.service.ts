@@ -8,6 +8,8 @@ export interface CurrentUser {
   displayName: string;
   email: string | null;
   avatarUrl?: string | null;
+  /** 002-scheduled-services：是否為管理者（後端依 ADMIN_ACCOUNT_IDS 判定） */
+  isAdmin?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -19,6 +21,7 @@ export class AuthService {
   private readonly _loaded = signal(false);
   readonly me = computed(() => this._me());
   readonly isLoggedIn = computed(() => this._me() !== null);
+  readonly isAdmin = computed(() => this._me()?.isAdmin === true);
   readonly initialized = computed(() => this._loaded());
 
   /** App 啟動或路由 guard 首次呼叫；失敗（401）視為未登入 */

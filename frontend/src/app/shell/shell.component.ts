@@ -53,6 +53,15 @@ import { ButtonComponent } from '../ui/button/button.component';
                 class="block rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
               >{{ i18n.t('nav_bulk_update') }}</a>
             </li>
+            @if (auth.isAdmin()) {
+              <li class="pt-2 mt-2 border-t border-slate-200">
+                <a
+                  routerLink="/schedules"
+                  routerLinkActive="bg-blue-50 text-blue-700"
+                  class="block rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100"
+                >{{ i18n.t('nav_schedules') }}</a>
+              </li>
+            }
           </ul>
         </nav>
         <main class="col-span-12 md:col-span-9 lg:col-span-10">

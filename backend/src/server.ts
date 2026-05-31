@@ -7,6 +7,12 @@ import { refreshAccessToken, loadOAuthConfig } from './services/auth/oauth';
 import { getPool } from './db/pool';
 import { AnthropicLlm, type LlmClient } from './services/nlq/llm';
 import type { NlqDeps } from './routes/nlq';
+// 002-scheduled-services
+import { createScheduleConfigsRepo } from './db/repositories/schedule-configs';
+import { createServiceLogsRepo } from './db/repositories/service-logs';
+import { Scheduler } from './jobs/scheduler';
+import { stubChkproj, stubChkissue } from './jobs/services/stub';
+import type { ServiceRegistry } from './jobs/services/types';
 
 const log = getLogger();
 const port = Number(process.env.PORT ?? 8080);
@@ -41,6 +47,36 @@ async function buildNlqDeps(): Promise<NlqDeps | undefined> {
   }
 }
 
+// 啟動 scheduler；CHKPROJ / CHKISSUE 暫用 stub（Phase 5 / 6 將取代）
+const scheduleConfigsRepo = createScheduleConfigsRepo(getPool());
+const serviceLogsRepo = createServiceLogsRepo(getPool());
+const services: ServiceRegistry = {
+  CHKPROJ: stubChkproj,
+  CHKISSUE: stubChkissue,
+};
+const scheduler = new Scheduler({
+  pool: getPool(),
+  serviceLogsRepo,
+  scheduleConfigsRepo,
+  services,
+  acquireSession: async () => {
+    // 服務本身須以「管理者」身份呼叫 mcp；v1 採第一個 admin accountId
+    const adminIds = (process.env.ADMIN_ACCOUNT_IDS ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (adminIds.length === 0) throw new Error('ADMIN_ACCOUNT_IDS 未設定');
+    // 從 atlassian_account_id 反查 users.id
+    const { rows } = await getPool().query<{ id: string }>(
+      `SELECT id FROM users WHERE atlassian_account_id = $1`,
+      [adminIds[0]],
+    );
+    const userId = rows[0]?.id;
+    if (!userId) throw new Error(`管理者 ${adminIds[0]} 未登入過此系統`);
+    return acquireSession(userId);
+  },
+});
+
 void (async () => {
   const nlqDeps = await buildNlqDeps();
   const app = createApp({
@@ -48,8 +84,53 @@ void (async () => {
     peopleDeps: { acquireSession },
     bulkDeps: { acquireSession },
     ...(nlqDeps ? { nlqDeps } : {}),
+    schedulesDeps: {
+      runnerDeps: {
+        pool: getPool(),
+        serviceLogsRepo,
+        scheduleConfigsRepo,
+        services,
+        acquireSession: async () => {
+          // 與 scheduler.acquireSession 相同
+          const adminIds = (process.env.ADMIN_ACCOUNT_IDS ?? '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          if (adminIds.length === 0) throw new Error('ADMIN_ACCOUNT_IDS 未設定');
+          const { rows } = await getPool().query<{ id: string }>(
+            `SELECT id FROM users WHERE atlassian_account_id = $1`,
+            [adminIds[0]],
+          );
+          const userId = rows[0]?.id;
+          if (!userId) throw new Error(`管理者 ${adminIds[0]} 未登入過此系統`);
+          return acquireSession(userId);
+        },
+      },
+      scheduler,
+      repo: scheduleConfigsRepo,
+      serviceLogsRepo,
+    },
   });
-  app.listen(port, () => {
+  app.listen(port, async () => {
     log.info({ port }, '[backend] listening');
+    try {
+      await scheduler.start();
+      log.info({ count: scheduler.registeredCount() }, '[scheduler] started');
+    } catch (err) {
+      log.error({ err }, '[scheduler] start failed');
+    }
   });
 })();
+
+// 優雅關閉
+async function shutdown(): Promise<void> {
+  log.info('[backend] shutting down');
+  try {
+    await scheduler.stop();
+  } catch (err) {
+    log.warn({ err }, '[scheduler] stop failed');
+  }
+  process.exit(0);
+}
+process.on('SIGTERM', () => void shutdown());
+process.on('SIGINT', () => void shutdown());

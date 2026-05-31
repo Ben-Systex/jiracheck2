@@ -18,6 +18,7 @@ import { projectsRouter, type ProjectsDeps } from './routes/projects';
 import { peopleRouter, type PeopleDeps } from './routes/people';
 import { bulkRouter, type BulkDeps } from './routes/bulk';
 import { nlqRouter, type NlqDeps } from './routes/nlq';
+import { schedulesRouter, type SchedulesDeps } from './routes/schedules';
 import { buildProblem, sendProblem, type ProblemDetails } from './lib/problem';
 import { httpMetricsMiddleware, initMetrics } from './lib/metrics';
 
@@ -34,6 +35,8 @@ export interface AppOptions {
   bulkDeps?: BulkDeps;
   /** 注入 US2 nlq route 之依賴（含 LLM 客戶端） */
   nlqDeps?: NlqDeps;
+  /** 注入 002 排程 routes 之依賴 */
+  schedulesDeps?: SchedulesDeps;
 }
 
 export function createApp(opts: AppOptions = {}): Express {
@@ -64,18 +67,7 @@ export function createApp(opts: AppOptions = {}): Express {
   app.use('/api/v1/auth', authRouter());
   app.use('/api/v1', metaRouter());
   if (!opts.skipMetrics) app.use('/api/v1', metricsRouter());
-  if (opts.projectsDeps) {
-    app.use('/api/v1', projectsRouter(opts.projectsDeps));
-  }
-  if (opts.peopleDeps) {
-    app.use('/api/v1', peopleRouter(opts.peopleDeps));
-  }
-  if (opts.bulkDeps) {
-    app.use('/api/v1', bulkRouter(opts.bulkDeps));
-  }
-  if (opts.nlqDeps) {
-    app.use('/api/v1', nlqRouter(opts.nlqDeps));
-  }
+  mountFeatureRouters(app, opts);
 
   // 404 fallback
   app.use((_req, res) => {
@@ -95,6 +87,14 @@ export function createApp(opts: AppOptions = {}): Express {
   });
 
   return app;
+}
+
+function mountFeatureRouters(app: Express, opts: AppOptions): void {
+  if (opts.projectsDeps) app.use('/api/v1', projectsRouter(opts.projectsDeps));
+  if (opts.peopleDeps) app.use('/api/v1', peopleRouter(opts.peopleDeps));
+  if (opts.bulkDeps) app.use('/api/v1', bulkRouter(opts.bulkDeps));
+  if (opts.nlqDeps) app.use('/api/v1', nlqRouter(opts.nlqDeps));
+  if (opts.schedulesDeps) app.use('/api/v1', schedulesRouter(opts.schedulesDeps));
 }
 
 function isProblem(x: unknown): x is ProblemDetails {
