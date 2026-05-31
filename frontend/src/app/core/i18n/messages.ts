@@ -271,6 +271,7 @@ export const messages = {
   service_logs_detail_without_issues: '無任務的專案（CHKISSUE）',
   service_logs_detail_empty_streak: '連續無任務警示',
   service_logs_detail_errors: '錯誤明細',
+  service_log_not_found: '找不到指定的執行紀錄，或您沒有檢視權限。',
 
   // ----- Project Check Lists (US3) -----
   project_check_lists_title: '專案檢查清單',

@@ -81,6 +81,13 @@ function fakeServiceLogsRepo(): ServiceLogsRepo & { _immediates: Array<Record<st
       immediates.push(args as unknown as Record<string, unknown>);
       return { id: 'sl-imm' };
     },
+    streamForExport() {
+      return {
+        async *[Symbol.asyncIterator]() {
+          /* noop */
+        },
+      };
+    },
     async getById() {
       return null;
     },

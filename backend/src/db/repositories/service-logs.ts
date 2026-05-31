@@ -68,12 +68,30 @@ export interface ServiceLogDetail extends ServiceLogSummary {
   triggeredByUserId: string | null;
 }
 
+export interface ExportArgs {
+  serviceId?: ExtendedServiceId;
+  result?: ServiceLogResult;
+  from?: Date;
+  to?: Date;
+}
+
+export interface ServiceLogExportRow {
+  startedAt: string;
+  endedAt: string;
+  serviceId: ExtendedServiceId;
+  triggeredBy: ServiceLogTriggeredBy;
+  result: ServiceLogResult;
+  summary: string;
+  notes: string;
+}
+
 export interface ServiceLogsRepo {
   start(args: StartArgs): Promise<{ id: string; startedAt: Date }>;
   finalize(args: FinalizeArgs): Promise<void>;
   insertImmediate(args: InsertImmediateArgs): Promise<{ id: string }>;
   getById(id: string): Promise<ServiceLogDetail | null>;
   list(args: ListArgs): Promise<{ items: ServiceLogSummary[]; nextCursor: string | null }>;
+  streamForExport(args: ExportArgs): AsyncIterable<ServiceLogExportRow>;
   pruneOlderThanDays(days: number): Promise<number>;
   countOpenForService(serviceId: ExtendedServiceId): Promise<number>;
 }
@@ -116,6 +134,33 @@ function rowToDetail(r: RawRow): ServiceLogDetail {
     notes: r.notes ?? {},
     triggeredByUserId: r.triggered_by_user_id,
   };
+}
+
+async function* streamExportImpl(
+  args: ExportArgs,
+  list: (a: ListArgs) => Promise<{ items: ServiceLogSummary[]; nextCursor: string | null }>,
+): AsyncGenerator<ServiceLogExportRow> {
+  const PAGE = 100; // list 內部已 clamp 到 max 100；streamForExport 沿用相同上限
+  let cursor: string | undefined;
+  for (;;) {
+    const listArgs: ListArgs = { ...args, pageSize: PAGE };
+    if (cursor) listArgs.cursor = cursor;
+    const { items, nextCursor } = await list(listArgs);
+    if (items.length === 0) return;
+    for (const it of items) {
+      yield {
+        startedAt: it.startedAt.toISOString(),
+        endedAt: it.endedAt?.toISOString() ?? '',
+        serviceId: it.serviceId,
+        triggeredBy: it.triggeredBy,
+        result: it.result,
+        summary: it.summary,
+        notes: '',
+      };
+    }
+    if (!nextCursor) return;
+    cursor = nextCursor;
+  }
 }
 
 function encodeCursor(d: Date): string {
@@ -248,6 +293,11 @@ export function createServiceLogsRepo(pool: Pool): ServiceLogsRepo {
         [String(days)],
       );
       return rowCount ?? 0;
+    },
+
+    streamForExport(args) {
+      // Async generator：以 keyset 分頁 chunked 取，避免一次性 load
+      return streamExportImpl(args, (a) => this.list(a));
     },
 
     async countOpenForService(serviceId) {

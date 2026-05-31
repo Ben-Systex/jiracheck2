@@ -130,6 +130,13 @@ export function createInMemoryServiceLogsRepo(): ServiceLogsRepo & {
     async list() {
       return { items: [], nextCursor: null };
     },
+    streamForExport() {
+      return {
+        async *[Symbol.asyncIterator]() {
+          /* empty in-memory default */
+        },
+      };
+    },
     async pruneOlderThanDays() {
       return 0;
     },

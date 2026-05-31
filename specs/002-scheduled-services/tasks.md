@@ -111,23 +111,23 @@ description: "002-scheduled-services 任務清單（依使用者故事拆分；�
 
 ### 後端 — repository / route
 
-- [ ] T034 [US2] 擴充 `backend/src/db/repositories/service-logs.ts`：新增 `list({ serviceId?, result?, from?, to?, cursor?, pageSize? })` keyset 分頁 + `getById(id)` + `streamForExport({ filters }): AsyncIterable<row>`。
-- [ ] T035 [P] [US2] 補 spec `backend/src/db/repositories/service-logs.spec.ts`：list filter 組合 + cursor / pageSize / streamForExport iteration；6 cases。
-- [ ] T036 [US2] 實作 `backend/src/routes/service-logs.ts`：3 endpoints `GET /service-logs` / `GET /service-logs/:id` / `GET /service-logs/export`；用 `csv-stringify` 流式輸出 + UTF-8 BOM；全 endpoints requireAdmin。
-- [ ] T037 [P] [US2] Contract spec `backend/tests/contract/service-logs.spec.ts`：list 各 filter 組合 / detail / export header 與 content-type / 401 / 403 共 10–12 cases。
-- [ ] T038 [P] [US2] Integration spec `backend/tests/integration/service-logs-export.spec.ts`：build mini app + insert 5 筆假紀錄 + 觸發 export → 驗 CSV 行數、欄位順序、BOM；3 cases。
+- [X] T034 [US2] service-logs.ts 擴充 streamForExport（AsyncGenerator + 100/頁 cursor 串接）；list 已在 T017 完成。
+- [X] T035 [P] [US2] service-logs.spec.ts 補 streamForExport 2 cases（共 16 cases）。
+- [X] T036 [US2] routes/service-logs.ts: GET /service-logs（list 預設 7 天）+ /:id + /export（csv-stringify stream + UTF-8 BOM）；全 admin-only。
+- [X] T037 [P] [US2] service-logs contract spec（10 cases，含 admin guard / 詳細 / export header / 壞 query）。
+- [X] T038 [P] [US2] service-logs-export integration spec（3 cases：header / BOM / Content-Disposition）。
 
 ### 前端 — feature
 
-- [ ] T039 [P] [US2] 實作 `frontend/src/app/features/service-logs/service-logs-api.service.ts`：list / get / export 三方法；list 回 cursor。
-- [ ] T040 [US2] 實作 `frontend/src/app/features/service-logs/service-logs.page.ts`：過濾列（serviceId chip / result chip / 日期區間 picker）+ 表格（含 result 色碼徽章）+ 載入更多按鈕（cursor）+ 匯出按鈕（觸發 `window.open(export URL with current filters)`）+ 預設「最近 7 天」。
-- [ ] T041 [P] [US2] 實作 `frontend/src/app/features/service-logs/service-log-detail.page.ts`：完整 summary、notes JSON pretty-print（區分 errors[] / delayed[] / with_issues[] 等常見鍵的中文 label）+ 「相關專案」如有則提供跳轉連結（FR-024）。
-- [ ] T042 [US2] 更新 `frontend/src/app/app.routes.ts` 加 `/service-logs` 與 `/service-logs/:id` + AdminGuard；shell 側欄加項目（`nav_service_logs`）。
-- [ ] T043 [P] [US2] Unit spec `frontend/src/app/features/service-logs/service-logs.page.spec.ts`：過濾觸發 reload / 「載入更多」用 cursor / 空態；5 cases。
+- [X] T039 [P] [US2] service-logs-api.service.ts（list / get / exportUrl 三方法）。
+- [X] T040 [US2] service-logs.page.ts（過濾列 + 色碼徽章表格 + 載入更多 cursor + 匯出 a tag + 預設「最近 7 天」）。
+- [X] T041 [P] [US2] service-log-detail.page.ts（完整 summary + notes JSON pretty-print + ruleVersion 顯示 + 404 狀態）。
+- [X] T042 [US2] app.routes.ts 加 /service-logs + /service-logs/:id + adminGuard；shell.component 側欄加項目。
+- [X] T043 [P] [US2] service-logs.page.spec.ts（5 cases：load / error / filter / load more / exportHref）。
 
 ### E2E
 
-- [ ] T044 [P] [US2] E2E spec `frontend/e2e/specs/us2-service-logs.spec.ts`：admin 登入後查列表 / 套過濾 / 進詳細頁 / 匯出 CSV 並驗下載；含 axe a11y。
+- [ ] T044 [P] [US2] E2E spec us2-service-logs.spec.ts（延後至 Phase 7 統一處理 E2E）。
 
 **Checkpoint**: US2 完整可演示——紀錄頁 + 詳細頁 + 匯出 + admin-only。
 

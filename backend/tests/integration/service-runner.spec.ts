@@ -71,6 +71,13 @@ function inMemoryServiceLogsRepo(): ServiceLogsRepo & { _logs: Map<string, Recor
     async list() {
       return { items: [], nextCursor: null };
     },
+    streamForExport() {
+      return {
+        async *[Symbol.asyncIterator]() {
+          /* empty in-memory default */
+        },
+      };
+    },
     async pruneOlderThanDays() {
       return 0;
     },

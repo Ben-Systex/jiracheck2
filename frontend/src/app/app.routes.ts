@@ -58,6 +58,24 @@ export const routes: Routes = [
           import('./features/schedules/schedules.page').then((m) => m.SchedulesPageComponent),
         data: { titleKey: 'nav_schedules' },
       },
+      {
+        path: 'service-logs',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/service-logs/service-logs.page').then(
+            (m) => m.ServiceLogsPageComponent,
+          ),
+        data: { titleKey: 'nav_service_logs' },
+      },
+      {
+        path: 'service-logs/:id',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/service-logs/service-log-detail.page').then(
+            (m) => m.ServiceLogDetailPageComponent,
+          ),
+        data: { titleKey: 'nav_service_logs' },
+      },
     ],
   },
   { path: '**', redirectTo: '' },

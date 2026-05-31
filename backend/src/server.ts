@@ -84,6 +84,9 @@ void (async () => {
     peopleDeps: { acquireSession },
     bulkDeps: { acquireSession },
     ...(nlqDeps ? { nlqDeps } : {}),
+    serviceLogsDeps: {
+      repo: serviceLogsRepo,
+    },
     schedulesDeps: {
       runnerDeps: {
         pool: getPool(),

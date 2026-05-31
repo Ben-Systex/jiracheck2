@@ -215,3 +215,66 @@ describe('countOpenForService', () => {
     expect(await repo.countOpenForService('CHKPROJ')).toBe(3);
   });
 });
+
+describe('streamForExport', () => {
+  const mkRow = (id: string, startedAt: Date): Record<string, unknown> => ({
+    id,
+    schedule_id: null,
+    service_id: 'CHKPROJ',
+    triggered_by: 'manual',
+    started_at: startedAt,
+    ended_at: new Date(startedAt.getTime() + 1000),
+    result: 'success',
+    summary: `summary-${id}`,
+    rule_version: null,
+  });
+
+  it('將 PG row → ExportRow（ISO 字串、空 notes）', async () => {
+    let callCount = 0;
+    const repo = createServiceLogsRepo(
+      mockPool(async () => {
+        callCount += 1;
+        if (callCount === 1) {
+          return {
+            rows: [
+              mkRow('a', new Date('2026-05-29T01:00:00Z')),
+              mkRow('b', new Date('2026-05-29T02:00:00Z')),
+            ],
+          };
+        }
+        return { rows: [] };
+      }),
+    );
+    const out = [];
+    for await (const r of repo.streamForExport({})) out.push(r);
+    expect(out).toHaveLength(2);
+    expect(out[0]!.startedAt).toBe('2026-05-29T01:00:00.000Z');
+    expect(out[0]!.serviceId).toBe('CHKPROJ');
+    expect(out[0]!.summary).toBe('summary-a');
+    expect(out[0]!.notes).toBe('');
+  });
+
+  it('多頁 cursor 串接', async () => {
+    let callCount = 0;
+    const NOW = new Date('2026-05-29T00:00:00Z');
+    const repo = createServiceLogsRepo(
+      mockPool(async () => {
+        callCount += 1;
+        // 第一次回 101 筆（PAGE=100 + 1 觸發 nextCursor → items=100）
+        if (callCount === 1) {
+          const rows = Array.from({ length: 101 }, (_, i) => mkRow(`a${i}`, NOW));
+          return { rows };
+        }
+        // 第二次回 1 筆（無下一頁）
+        if (callCount === 2) {
+          return { rows: [mkRow('b1', NOW)] };
+        }
+        return { rows: [] };
+      }),
+    );
+    const out = [];
+    for await (const r of repo.streamForExport({ serviceId: 'CHKPROJ' })) out.push(r);
+    // 100 + 1 = 101 條
+    expect(out.length).toBe(101);
+  });
+});
