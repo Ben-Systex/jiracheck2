@@ -33,6 +33,16 @@ export const messages = {
   bulk_confirm_text_invalid: '請依「確認更新 N 筆」之格式輸入確認字串。',
   bulk_confirm_count_mismatch: '確認筆數與預覽筆數不一致，請重新輸入。',
   bulk_no_permission_items: '您對下列 issue 沒有編輯權限，請調整選取範圍。',
+
+  // ----- Scheduled services (002-scheduled-services) -----
+  auth_forbidden_admin_only: '此功能僅限管理者使用。',
+  schedule_cron_invalid: 'cron 字串格式無效，請參考說明範例。',
+  schedule_frequency_invalid: '頻率設定無效，請檢查時間格式（HH:MM 或 cron）。',
+  schedule_not_found: '找不到指定的排程，或您沒有檢視權限。',
+  schedule_conflict_concurrent: '上一次仍在執行中，本次略過。',
+  service_log_not_found: '找不到指定的執行紀錄，或您沒有檢視權限。',
+  project_check_list_conflict: '此專案代號已存在於檢查清單中。',
+  project_check_list_not_found: '找不到指定的檢查清單項目。',
 } as const;
 
 export type MessageKey = keyof typeof messages;

@@ -28,10 +28,10 @@ description: "002-scheduled-services 任務清單（依使用者故事拆分；�
 
 **Purpose**: 安裝新依賴、建立 migration、env 注入。
 
-- [ ] T001 新增 backend 依賴 `node-cron@^3`、`cron-parser@^4`、`csv-stringify@^6`：`cd backend && npm install --save node-cron cron-parser csv-stringify`，並更新 `backend/package.json` + `package-lock.json`（憲法附加約束「依賴必須說明用途與授權」於 PR 描述中註明三者皆 MIT）。
-- [ ] T002 [P] 撰寫 migration `backend/src/db/migrations/0003_scheduled_services.up.sql`：依 [data-model.md](./data-model.md) 建 4 表（`schedule_configs` / `service_logs` / `project_check_lists` / `project_issue_snapshots`）+ 所有索引；同檔 `0003_scheduled_services.down.sql` 對應 DROP。
-- [ ] T003 [P] 更新 `ops/.env.example` 加入 3 個新 env：`ADMIN_ACCOUNT_IDS=`（逗號分隔白名單）、`SERVER_TZ=Asia/Taipei`、`CHKISSUE_EMPTY_STREAK_THRESHOLD=4`；同步更新 `ops/docker-compose.yml` 把這 3 個傳遞給 backend 服務。
-- [ ] T004 [P] 更新 `specs/001-jira-assistant/quickstart.md` 附錄 A 加註：「002-scheduled-services 啟用後需跑 migration 0003」（避免新 onboarding 漏跑）。
+- [X] T001 新增 backend 依賴 `node-cron@^4`、`cron-parser@^5`、`csv-stringify@^6`（實裝版本較 spec 略新；皆 MIT）：`cd backend && npm install --save node-cron cron-parser csv-stringify && npm install --save-dev @types/node-cron`。
+- [X] T002 [P] migration `backend/src/db/migrations/0003_scheduled_services.up.sql` + `.down.sql`：建 4 表 + 8 索引。
+- [X] T003 [P] 更新 `ops/.env.example` 加入 `ADMIN_ACCOUNT_IDS` / `SERVER_TZ` / `CHKISSUE_EMPTY_STREAK_THRESHOLD`；同步更新 `ops/docker-compose.yml`。
+- [X] T004 [P] 更新 `specs/001-jira-assistant/checklists/quickstart-validation.md` 附錄 B 加註 002 啟用後追加項。
 
 ---
 
@@ -41,20 +41,16 @@ description: "002-scheduled-services 任務清單（依使用者故事拆分；�
 
 **⚠️ CRITICAL**: Phase 3+ 任何任務皆不可在本階段未完成前開始。
 
-- [ ] T005 實作 `backend/src/middleware/require-admin.ts`：讀 `process.env.ADMIN_ACCOUNT_IDS`（逗號分隔）→ Set；export `requireAdmin` RequestHandler，比對 `req.sessionUser.userId` 對應 `users.atlassian_account_id`（需從 DB 取或從 session 帶 accountId），不符 → `sendProblem(buildProblem('forbidden', { messageKey: 'auth_forbidden_admin_only' }))`。
-- [ ] T006 [P] Unit spec `backend/src/middleware/require-admin.spec.ts`：含「白名單命中 → next()」、「未登入 → 401」、「已登入但不在白名單 → 403」、「`ADMIN_ACCOUNT_IDS` 未設 → 全 deny」共 4 案例。
-- [ ] T007 [P] 擴充 `backend/src/routes/meta.ts` 之 `GET /me`：回應加 `isAdmin: boolean` 欄位（用 require-admin 內的判定函式 reuse；不直接 import middleware 以避免循環）。
-- [ ] T008 [P] 更新 `backend/src/routes/meta.spec.ts`：補「admin 帳號 → isAdmin=true」「非 admin → isAdmin=false」「未設 env → 全 false」共 3 案。
-- [ ] T009 實作 `backend/src/lib/cron-utils.ts`：export `validateFrequency({ type, value })` → 解析失敗回 problem；`computeNextRunAt({ type, value }, now): Date | null`；`toCronExpression({ type, value }): string`（將 daily/weekly/monthly 轉成 cron expression 統一交給 node-cron）；採 `cron-parser`，時區固定 `process.env.SERVER_TZ ?? 'Asia/Taipei'`。
-- [ ] T010 [P] Unit spec `backend/src/lib/cron-utils.spec.ts`：對 daily/weekly/monthly/cron 各 2–3 個合法 + 不合法 case；validateNextRunAt 邊界（剛剛過 vs 一分鐘後）；總計約 12 cases。
-- [ ] T011 [P] 新增 i18n keys 至 `backend/src/lib/i18n/zh-TW.ts`：`auth_forbidden_admin_only`、`schedule_cron_invalid`、`schedule_frequency_invalid`、`schedule_not_found`、`schedule_conflict_concurrent`、`service_log_not_found`、`project_check_list_conflict`、`project_check_list_not_found`。
-- [ ] T012 [P] 新增 frontend i18n keys 至 `frontend/src/app/core/i18n/messages.ts`：本 feature 全部 user-facing 字串（schedules_*、service_logs_*、project_check_lists_*、nav 新項目等；初估 ~50 keys；憲法 III）。
-- [ ] T013 在 `backend/src/lib/metrics.ts` 新增 4 個 metric（依 [research R-011](./research.md#r-011觀測性指標補強)）：
-   - `scheduled_service_total{service_id, result}` Counter
-   - `scheduled_service_duration_seconds{service_id}` Histogram (buckets: 0.5, 1, 5, 10, 30, 60, 300, 600)
-   - `scheduled_service_active_count` Gauge
-   - `schedule_configs_enabled_count` Gauge
-- [ ] T014 [P] Unit spec `backend/src/lib/metrics.spec.ts` 補充：對 4 個新 metric 的 inc / observe / set 各加 1 案；確保 `__resetMetricsForTesting` reset 涵蓋新 metric。
+- [X] T005 require-admin middleware（含 getAdminAccountIds / isAdminByUserId / requireAdmin）。
+- [X] T006 [P] require-admin.spec.ts（13 cases：env 解析 / isAdminByUserId / middleware 各分支）。
+- [X] T007 [P] /me 加 isAdmin 欄位。
+- [X] T008 [P] meta.spec.ts 補 admin / 非 admin 兩 case。
+- [X] T009 cron-utils.ts（toCronExpression / computeNextRunAt / validateFrequency / FrequencyError）。
+- [X] T010 [P] cron-utils.spec.ts（18 cases）。
+- [X] T011 [P] backend i18n keys（8 keys）。
+- [X] T012 [P] frontend i18n keys（schedules / service_logs / project_check_lists ~80 keys）。
+- [X] T013 metrics 4 個新 metric（scheduledServiceTotal / Duration / ActiveCount / ScheduleConfigsEnabledCount）。
+- [X] T014 [P] metrics.spec.ts 補 4 個新 metric 驗證 case。
 
 **Checkpoint**: 基礎齊備——admin 判定、/me 擴充、cron utils、metrics 接好；US1 可開始。
 

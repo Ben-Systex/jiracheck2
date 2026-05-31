@@ -1,9 +1,11 @@
 // /me + /healthz：對應 OpenAPI Tag `meta`
+// T007 (002-scheduled-services): /me 回應加 isAdmin 欄位（依 ADMIN_ACCOUNT_IDS 白名單）
 
 import { Router } from 'express';
 import { requireAuth } from '../middleware/session';
 import { getPool } from '../db/pool';
 import { buildProblem, sendProblem } from '../lib/problem';
+import { getAdminAccountIds } from '../middleware/require-admin';
 
 export function metaRouter(): Router {
   const router = Router();
@@ -26,10 +28,12 @@ export function metaRouter(): Router {
       sendProblem(res, buildProblem('not_found'));
       return;
     }
+    const isAdmin = getAdminAccountIds().has(row.atlassian_account_id);
     res.json({
       accountId: row.atlassian_account_id,
       displayName: row.display_name,
       email: row.email,
+      isAdmin,
     });
   });
 

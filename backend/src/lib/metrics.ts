@@ -8,7 +8,7 @@
 // 註：使用 prom-client 預設 registry；server.ts 在 boot 時呼叫 collectDefaultMetrics
 // 取得 Node runtime 指標（記憶體 / GC / event loop lag）。
 
-import client, { type Histogram, type Counter, type Registry } from 'prom-client';
+import client, { type Histogram, type Counter, type Gauge, type Registry } from 'prom-client';
 import type { RequestHandler } from 'express';
 
 let initialized = false;
@@ -36,6 +36,10 @@ export function __resetMetricsForTesting(): void {
   nlqQueryDuration.reset();
   bulkOperationTotal.reset();
   authEventsTotal.reset();
+  scheduledServiceTotal.reset();
+  scheduledServiceDuration.reset();
+  scheduledServiceActiveCount.reset();
+  scheduleConfigsEnabledCount.reset();
   initialized = false;
 }
 
@@ -79,6 +83,32 @@ export const authEventsTotal: Counter<string> = new client.Counter({
   name: 'auth_events_total',
   help: '認證事件總數',
   labelNames: ['event'], // login / callback_success / refresh / logout / state_mismatch
+});
+
+// ---- 002-scheduled-services metrics（research R-011）-----------------------
+
+export const scheduledServiceTotal: Counter<string> = new client.Counter({
+  name: 'scheduled_service_total',
+  help: '定時服務執行總次數（依服務 ID 與結果）',
+  labelNames: ['service_id', 'result'],
+});
+
+export const scheduledServiceDuration: Histogram<string> = new client.Histogram({
+  name: 'scheduled_service_duration_seconds',
+  help: '定時服務執行延遲（秒）',
+  labelNames: ['service_id'],
+  // 對應 SC-004 (5 min) / SC-005 (10 min) 上限
+  buckets: [0.5, 1, 5, 10, 30, 60, 300, 600],
+});
+
+export const scheduledServiceActiveCount: Gauge<string> = new client.Gauge({
+  name: 'scheduled_service_active_count',
+  help: '目前正在執行的定時服務數量',
+});
+
+export const scheduleConfigsEnabledCount: Gauge<string> = new client.Gauge({
+  name: 'schedule_configs_enabled_count',
+  help: '啟用中的排程數量（CRUD 後更新）',
 });
 
 // ---- helpers --------------------------------------------------------------
