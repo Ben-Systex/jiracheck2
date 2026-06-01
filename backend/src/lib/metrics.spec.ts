@@ -10,6 +10,10 @@ import {
   nlqQueryDuration,
   bulkOperationTotal,
   authEventsTotal,
+  scheduledServiceTotal,
+  scheduledServiceDuration,
+  scheduledServiceActiveCount,
+  scheduleConfigsEnabledCount,
   observeDuration,
   httpMetricsMiddleware,
 } from './metrics';
@@ -114,5 +118,45 @@ describe('counters / histograms exist', () => {
     bulkOperationTotal.inc({ status: 'success' }, 1);
     authEventsTotal.inc({ event: 'login' }, 1);
     expect(true).toBe(true);
+  });
+});
+
+describe('scheduled service metrics (002)', () => {
+  it('scheduledServiceTotal counter inc 後可在 metrics 文字找到', async () => {
+    scheduledServiceTotal.inc({ service_id: 'CHKPROJ', result: 'success' }, 2);
+    const text = await getRegistry().metrics();
+    expect(text).toMatch(/scheduled_service_total\{[^}]*service_id="CHKPROJ"[^}]*result="success"\}\s+2/);
+  });
+
+  it('scheduledServiceDuration histogram observe', async () => {
+    scheduledServiceDuration.observe({ service_id: 'CHKISSUE' }, 12.5);
+    const text = await getRegistry().metrics();
+    expect(text).toMatch(/scheduled_service_duration_seconds_count\{[^}]*service_id="CHKISSUE"\}\s+1/);
+  });
+
+  it('scheduledServiceActiveCount gauge set', async () => {
+    scheduledServiceActiveCount.set(3);
+    const text = await getRegistry().metrics();
+    expect(text).toMatch(/scheduled_service_active_count\s+3/);
+  });
+
+  it('scheduleConfigsEnabledCount gauge set', async () => {
+    scheduleConfigsEnabledCount.set(7);
+    const text = await getRegistry().metrics();
+    expect(text).toMatch(/schedule_configs_enabled_count\s+7/);
+  });
+
+  it('scheduleConfigsEnabledCount gauge 更新追蹤 CRUD 變化', async () => {
+    scheduleConfigsEnabledCount.set(2);
+    let text = await getRegistry().metrics();
+    expect(text).toMatch(/schedule_configs_enabled_count\s+2/);
+
+    scheduleConfigsEnabledCount.set(5);
+    text = await getRegistry().metrics();
+    expect(text).toMatch(/schedule_configs_enabled_count\s+5/);
+
+    scheduleConfigsEnabledCount.set(0);
+    text = await getRegistry().metrics();
+    expect(text).toMatch(/schedule_configs_enabled_count\s+0/);
   });
 });

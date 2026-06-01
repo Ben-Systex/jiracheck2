@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/auth/auth.guard';
+import { adminGuard } from './core/auth/admin.guard';
 
 export const routes: Routes = [
   {
@@ -48,6 +49,41 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/bulk-update/history/history.page').then((m) => m.BulkHistoryPageComponent),
         data: { titleKey: 'nav_bulk_history' },
+      },
+      // ---- 002-scheduled-services ----
+      {
+        path: 'schedules',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/schedules/schedules.page').then((m) => m.SchedulesPageComponent),
+        data: { titleKey: 'nav_schedules' },
+      },
+      {
+        path: 'service-logs',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/service-logs/service-logs.page').then(
+            (m) => m.ServiceLogsPageComponent,
+          ),
+        data: { titleKey: 'nav_service_logs' },
+      },
+      {
+        path: 'service-logs/:id',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/service-logs/service-log-detail.page').then(
+            (m) => m.ServiceLogDetailPageComponent,
+          ),
+        data: { titleKey: 'nav_service_logs' },
+      },
+      {
+        path: 'project-check-lists',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/project-check-lists/project-check-lists.page').then(
+            (m) => m.ProjectCheckListsPageComponent,
+          ),
+        data: { titleKey: 'nav_project_check_lists' },
       },
     ],
   },

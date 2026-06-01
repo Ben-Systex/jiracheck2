@@ -7,6 +7,17 @@ import { refreshAccessToken, loadOAuthConfig } from './services/auth/oauth';
 import { getPool } from './db/pool';
 import { AnthropicLlm, type LlmClient } from './services/nlq/llm';
 import type { NlqDeps } from './routes/nlq';
+// 002-scheduled-services
+import { createScheduleConfigsRepo } from './db/repositories/schedule-configs';
+import { createServiceLogsRepo } from './db/repositories/service-logs';
+import { createProjectCheckListsRepo } from './db/repositories/project-check-lists';
+import { createProjectIssueSnapshotsRepo } from './db/repositories/project-issue-snapshots';
+import { Scheduler } from './jobs/scheduler';
+import { createChkprojService } from './jobs/services/chkproj';
+import { createChkissueService } from './jobs/services/chkissue';
+import { scheduleCleanup } from './jobs/cleanup';
+import { fetchProjectForChkproj } from './services/jira/chkproj-fetcher';
+import type { ServiceRegistry } from './jobs/services/types';
 
 const log = getLogger();
 const port = Number(process.env.PORT ?? 8080);
@@ -41,6 +52,45 @@ async function buildNlqDeps(): Promise<NlqDeps | undefined> {
   }
 }
 
+// 啟動 scheduler；CHKPROJ 已實作（Phase 5）；CHKISSUE 已實作（Phase 6）
+const scheduleConfigsRepo = createScheduleConfigsRepo(getPool());
+const serviceLogsRepo = createServiceLogsRepo(getPool());
+const projectCheckListsRepo = createProjectCheckListsRepo(getPool());
+const projectIssueSnapshotsRepo = createProjectIssueSnapshotsRepo(getPool());
+const chkprojService = createChkprojService({
+  projectCheckListsRepo,
+  fetchProject: fetchProjectForChkproj,
+});
+const chkissueService = createChkissueService({
+  snapshotsRepo: projectIssueSnapshotsRepo,
+});
+const services: ServiceRegistry = {
+  CHKPROJ: chkprojService,
+  CHKISSUE: chkissueService,
+};
+const scheduler = new Scheduler({
+  pool: getPool(),
+  serviceLogsRepo,
+  scheduleConfigsRepo,
+  services,
+  acquireSession: async () => {
+    // 服務本身須以「管理者」身份呼叫 mcp；v1 採第一個 admin accountId
+    const adminIds = (process.env.ADMIN_ACCOUNT_IDS ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (adminIds.length === 0) throw new Error('ADMIN_ACCOUNT_IDS 未設定');
+    // 從 atlassian_account_id 反查 users.id
+    const { rows } = await getPool().query<{ id: string }>(
+      `SELECT id FROM users WHERE atlassian_account_id = $1`,
+      [adminIds[0]],
+    );
+    const userId = rows[0]?.id;
+    if (!userId) throw new Error(`管理者 ${adminIds[0]} 未登入過此系統`);
+    return acquireSession(userId);
+  },
+});
+
 void (async () => {
   const nlqDeps = await buildNlqDeps();
   const app = createApp({
@@ -48,8 +98,68 @@ void (async () => {
     peopleDeps: { acquireSession },
     bulkDeps: { acquireSession },
     ...(nlqDeps ? { nlqDeps } : {}),
+    serviceLogsDeps: {
+      repo: serviceLogsRepo,
+    },
+    projectCheckListsDeps: {
+      repo: projectCheckListsRepo,
+    },
+    schedulesDeps: {
+      runnerDeps: {
+        pool: getPool(),
+        serviceLogsRepo,
+        scheduleConfigsRepo,
+        services,
+        acquireSession: async () => {
+          // 與 scheduler.acquireSession 相同
+          const adminIds = (process.env.ADMIN_ACCOUNT_IDS ?? '')
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean);
+          if (adminIds.length === 0) throw new Error('ADMIN_ACCOUNT_IDS 未設定');
+          const { rows } = await getPool().query<{ id: string }>(
+            `SELECT id FROM users WHERE atlassian_account_id = $1`,
+            [adminIds[0]],
+          );
+          const userId = rows[0]?.id;
+          if (!userId) throw new Error(`管理者 ${adminIds[0]} 未登入過此系統`);
+          return acquireSession(userId);
+        },
+      },
+      scheduler,
+      repo: scheduleConfigsRepo,
+      serviceLogsRepo,
+    },
   });
-  app.listen(port, () => {
+  app.listen(port, async () => {
     log.info({ port }, '[backend] listening');
+    try {
+      await scheduler.start();
+      log.info({ count: scheduler.registeredCount() }, '[scheduler] started');
+    } catch (err) {
+      log.error({ err }, '[scheduler] start failed');
+    }
   });
 })();
+
+// 每日 03:00 cleanup（T065 + T096：service_logs / bulk_ops / query_history / sessions / snapshots）
+const stopCleanup = scheduleCleanup({
+  pool: getPool(),
+  log,
+  serviceLogsRepo,
+  snapshotsRepo: projectIssueSnapshotsRepo,
+});
+
+// 優雅關閉
+async function shutdown(): Promise<void> {
+  log.info('[backend] shutting down');
+  try {
+    stopCleanup();
+    await scheduler.stop();
+  } catch (err) {
+    log.warn({ err }, '[scheduler] stop failed');
+  }
+  process.exit(0);
+}
+process.on('SIGTERM', () => void shutdown());
+process.on('SIGINT', () => void shutdown());

@@ -1,0 +1,87 @@
+# T079：Prometheus alert rule 範例（feature 002-scheduled-services）
+#
+# 對應 SC-007「對於明顯異常的執行結果（例如連續 3 次失敗），系統的可發現性使管理者
+# 能在當週內介入；不必等使用者自行回報」。
+#
+# 使用方式（prod 不直接載入本檔；以下為「樣板」供運維注入 Prometheus Operator /
+# Alertmanager）：
+#
+#   1. 將 jiracheck-backend 之 /api/v1/metrics 加入 Prometheus scrape config（若有
+#      METRICS_TOKEN，需配 authorization.credentials）
+#   2. 將下方 groups 區段內容複製到對應的 PrometheusRule CRD 或本機 Prometheus
+#      之 rule_files 引用之檔案
+#   3. 配 Alertmanager 路由（例：Slack / Email / Webhook）
+#
+# 規則設計：
+#   - 連續 3 次失敗 → warning：1 天內 increase(... result="failure" ...) >= 3
+#   - 連續 5 次失敗 / 1 小時內 → critical：1h 內 >= 5（重大異常）
+#   - 排程無觸發 → warning：6h 內 scheduled_service_total 無任何 inc
+#   - 任意 partial_failure → info（informational，不立即告警，但留 SLA 紀錄）
+
+groups:
+  - name: jiracheck-scheduled-services
+    interval: 1m
+    rules:
+      - alert: ScheduledServiceFailing
+        expr: |
+          sum by (service_id) (
+            increase(scheduled_service_total{result="failure"}[1d])
+          ) >= 3
+        for: 5m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: 'CHKPROJ / CHKISSUE 服務 24h 內連續失敗 ≥ 3 次（{{ $labels.service_id }}）'
+          description: |
+            服務 {{ $labels.service_id }} 在過去 24 小時內已累積 {{ $value }} 次失敗。
+            請進 /api/v1/service-logs?serviceId={{ $labels.service_id }}&result=failure 查看根因。
+          runbook_url: 'https://github.com/Ben-Systex/jiracheck2/blob/main/docs/admin-setup.md#chkproj--chkissue-連續失敗排查'
+
+      - alert: ScheduledServiceFailingHighRate
+        expr: |
+          sum by (service_id) (
+            increase(scheduled_service_total{result="failure"}[1h])
+          ) >= 5
+        for: 5m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: 'CHKPROJ / CHKISSUE 服務 1 小時內失敗 ≥ 5 次（{{ $labels.service_id }}）'
+          description: |
+            服務 {{ $labels.service_id }} 在過去 1 小時內已累積 {{ $value }} 次失敗，
+            可能因 Atlassian API 全面異常或 OAuth refresh 失效，請立即介入。
+
+      - alert: ScheduledServiceNoExecution
+        expr: |
+          sum by (service_id) (
+            rate(scheduled_service_total[6h])
+          ) == 0
+        for: 30m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: '服務 {{ $labels.service_id }} 6 小時內無任何執行'
+          description: |
+            可能原因：排程被停用、scheduler 未啟動、或 backend 進程異常。
+            請進 /api/v1/schedules 確認對應排程之 enabled 與 next_run_at；
+            並檢查 backend 日誌「[scheduler] started」是否存在。
+
+      - alert: ScheduledServiceLatencyHigh
+        expr: |
+          histogram_quantile(0.95,
+            sum by (service_id, le) (
+              rate(scheduled_service_duration_seconds_bucket[1h])
+            )
+          ) > 300
+        for: 15m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: '服務 {{ $labels.service_id }} p95 延遲 > 5 分鐘（SC-004/005 上限）'
+          description: |
+            可能因 Jira API 響應變慢或 issue / project 數異常成長。
+            建議：先確認 mcp-atlassian 容器負載；如持續可考慮提高 concurrency。

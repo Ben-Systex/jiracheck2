@@ -177,3 +177,18 @@ docker compose -f ops/docker-compose.yml --env-file ops/.env down -v
 - [x] OpenAPI 包含 14 endpoints（auth / me / projects×3 / nlq / people×3 / bulk×4）
 - [x] frontend `app.routes.ts` 含 `/dashboard` `/nlq` `/people` `/bulk` `/bulk/history`
 - [x] backend `/healthz` + `/metrics` route 註冊
+
+---
+
+## 附錄 B：002-scheduled-services 啟用後追加項
+
+若已合入 feature 002（定時排程服務），本 checklist 之上請追加：
+
+- [ ] migration `0003_scheduled_services` 已套用（含 `schedule_configs` / `service_logs` / `project_check_lists` / `project_issue_snapshots` 4 表）
+- [ ] `ops/.env` 已注入 `ADMIN_ACCOUNT_IDS`（至少一個 accountId）
+- [ ] `/api/v1/me` 回傳含 `isAdmin: true`（對白名單帳號）
+- [ ] `/api/v1/metrics` 含 `scheduled_service_total` / `scheduled_service_duration_seconds` 等系列指標
+- [ ] **附錄 6 metrics 驗證項額外含 `scheduled_service_total{service_id="CHKPROJ",result="..."}` 計數**（在跑完 quickstart step 4–8 後該 counter ≥ 1）
+- [ ] cleanup 排程 03:00 啟動（檢查 backend log 啟動訊息含 `[cleanup]`；雖然 cleanup 預設一日跑一次無法當下驗證，但 server.ts 應有對應 `scheduleCleanup` 呼叫）
+- [ ] **`scheduledServiceTotal` 對 CHKPROJ 與 CHKISSUE 兩個 service_id 各有計數**（跑完 002 quickstart 之 step 5–8 後）
+- [ ] 002 feature 自身另有 `specs/002-scheduled-services/checklists/quickstart-validation.md` 之 12 步驗證流程
