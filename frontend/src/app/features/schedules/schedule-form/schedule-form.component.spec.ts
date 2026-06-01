@@ -18,7 +18,7 @@ describe('ScheduleFormComponent', () => {
     const c = build();
     let emitted: ScheduleConfigInput | undefined;
     c.submitted.subscribe((v) => (emitted = v));
-    c.onSubmit({ preventDefault() {} } as Event);
+    c.onSubmit({ preventDefault: () => undefined } as unknown as Event);
     expect(emitted).toEqual({
       serviceId: 'CHKPROJ',
       frequencyType: 'daily',
@@ -34,7 +34,7 @@ describe('ScheduleFormComponent', () => {
     c.weeklyDow = 3;
     let emitted: ScheduleConfigInput | undefined;
     c.submitted.subscribe((v) => (emitted = v));
-    c.onSubmit({ preventDefault() {} } as Event);
+    c.onSubmit({ preventDefault: () => undefined } as unknown as Event);
     expect(emitted?.frequencyValue).toBe('10:30:3');
   });
 
@@ -45,7 +45,7 @@ describe('ScheduleFormComponent', () => {
     c.monthlyDom = 15;
     let emitted: ScheduleConfigInput | undefined;
     c.submitted.subscribe((v) => (emitted = v));
-    c.onSubmit({ preventDefault() {} } as Event);
+    c.onSubmit({ preventDefault: () => undefined } as unknown as Event);
     expect(emitted?.frequencyValue).toBe('08:00:15');
   });
 
@@ -55,7 +55,7 @@ describe('ScheduleFormComponent', () => {
     c.cronExpr = '*/5 * * * *';
     let emitted: ScheduleConfigInput | undefined;
     c.submitted.subscribe((v) => (emitted = v));
-    c.onSubmit({ preventDefault() {} } as Event);
+    c.onSubmit({ preventDefault: () => undefined } as unknown as Event);
     expect(emitted?.frequencyType).toBe('cron');
     expect(emitted?.frequencyValue).toBe('*/5 * * * *');
   });

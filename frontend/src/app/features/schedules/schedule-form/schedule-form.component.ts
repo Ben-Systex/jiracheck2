@@ -10,8 +10,6 @@ import {
   Input,
   Output,
   inject,
-  signal,
-  effect,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { I18nService } from '../../../core/i18n/i18n.service';

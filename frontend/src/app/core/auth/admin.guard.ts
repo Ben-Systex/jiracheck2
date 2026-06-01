@@ -16,7 +16,6 @@ export const adminGuard: CanActivateFn = async () => {
   const i18n = inject(I18nService);
   await auth.ensureLoaded();
   if (auth.isAdmin()) return true;
-  // eslint-disable-next-line no-console
   console.warn('[adminGuard]', i18n.t('admin_required_toast'));
   return router.parseUrl('/dashboard');
 };

@@ -49,7 +49,7 @@ describe('ProjectCheckListsPageComponent', () => {
 
     f.componentInstance.newProjectKey = 'NEW';
     f.componentInstance.newNote = 'test';
-    void f.componentInstance.onAdd({ preventDefault() {} } as Event);
+    void f.componentInstance.onAdd({ preventDefault: () => undefined } as unknown as Event);
 
     const post = http.expectOne((r) => r.method === 'POST' && r.url.endsWith('/project-check-lists'));
     expect(post.request.body).toEqual({ projectKey: 'NEW', note: 'test' });
@@ -71,7 +71,7 @@ describe('ProjectCheckListsPageComponent', () => {
     await f.whenStable();
 
     f.componentInstance.newProjectKey = 'DUP';
-    void f.componentInstance.onAdd({ preventDefault() {} } as Event);
+    void f.componentInstance.onAdd({ preventDefault: () => undefined } as unknown as Event);
     const post = http.expectOne((r) => r.method === 'POST' && r.url.endsWith('/project-check-lists'));
     post.flush({ cause: 'conflict' }, { status: 409, statusText: 'Conflict' });
     await f.whenStable();
@@ -94,7 +94,7 @@ describe('ProjectCheckListsPageComponent', () => {
     await f.whenStable();
 
     f.componentInstance.newProjectKey = '   ';
-    void f.componentInstance.onAdd({ preventDefault() {} } as Event);
+    void f.componentInstance.onAdd({ preventDefault: () => undefined } as unknown as Event);
     // 不應有任何新 HTTP 請求
     http.verify();
   });

@@ -63,7 +63,7 @@ describe('ServiceLogsPageComponent', () => {
     await fixture.whenStable();
 
     fixture.componentInstance.serviceId = 'CHKPROJ';
-    fixture.componentInstance.onFilter({ preventDefault() {} } as Event);
+    fixture.componentInstance.onFilter({ preventDefault: () => undefined } as unknown as Event);
 
     const req = http.expectOne((r) => r.url.endsWith('/service-logs') && r.params.get('serviceId') === 'CHKPROJ');
     req.flush({ items: [mkSummary()], nextCursor: null });
