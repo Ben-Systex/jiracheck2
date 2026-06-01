@@ -20,6 +20,10 @@ import { bulkRouter, type BulkDeps } from './routes/bulk';
 import { nlqRouter, type NlqDeps } from './routes/nlq';
 import { schedulesRouter, type SchedulesDeps } from './routes/schedules';
 import { serviceLogsRouter, type ServiceLogsDeps } from './routes/service-logs';
+import {
+  projectCheckListsRouter,
+  type ProjectCheckListsDeps,
+} from './routes/project-check-lists';
 import { buildProblem, sendProblem, type ProblemDetails } from './lib/problem';
 import { httpMetricsMiddleware, initMetrics } from './lib/metrics';
 
@@ -40,6 +44,8 @@ export interface AppOptions {
   schedulesDeps?: SchedulesDeps;
   /** 注入 002 service-logs routes 之依賴 */
   serviceLogsDeps?: ServiceLogsDeps;
+  /** 注入 002 project-check-lists routes 之依賴（CHKPROJ 輸入清單） */
+  projectCheckListsDeps?: ProjectCheckListsDeps;
 }
 
 export function createApp(opts: AppOptions = {}): Express {
@@ -99,6 +105,8 @@ function mountFeatureRouters(app: Express, opts: AppOptions): void {
   if (opts.nlqDeps) app.use('/api/v1', nlqRouter(opts.nlqDeps));
   if (opts.schedulesDeps) app.use('/api/v1', schedulesRouter(opts.schedulesDeps));
   if (opts.serviceLogsDeps) app.use('/api/v1', serviceLogsRouter(opts.serviceLogsDeps));
+  if (opts.projectCheckListsDeps)
+    app.use('/api/v1', projectCheckListsRouter(opts.projectCheckListsDeps));
 }
 
 function isProblem(x: unknown): x is ProblemDetails {

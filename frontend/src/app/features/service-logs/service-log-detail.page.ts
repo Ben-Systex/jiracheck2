@@ -72,6 +72,59 @@ type State = 'idle' | 'loading' | 'error' | 'not-found';
               <dd class="col-span-2 whitespace-pre-wrap">{{ d.summary }}</dd>
             </dl>
 
+            @if (delayed(d).length > 0) {
+              <div class="rounded-md border border-slate-200 bg-white p-4">
+                <h2 class="text-sm font-semibold text-slate-700 mb-2">
+                  {{ i18n.t('service_logs_detail_delayed_projects') }}
+                </h2>
+                <table class="min-w-full text-sm">
+                  <thead class="text-slate-500">
+                    <tr>
+                      <th class="px-2 py-1 text-left">Project</th>
+                      <th class="px-2 py-1 text-left">Conditions</th>
+                      <th class="px-2 py-1 text-right">Sprint %</th>
+                      <th class="px-2 py-1 text-right">Completion %</th>
+                      <th class="px-2 py-1 text-right">Overdue</th>
+                      <th class="px-2 py-1 text-right">Max days</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-100">
+                    @for (dp of delayed(d); track dp.projectKey) {
+                      <tr>
+                        <td class="px-2 py-1 font-mono">
+                          <a [routerLink]="['/dashboard']"
+                            [queryParams]="{ projectKey: dp.projectKey }"
+                            class="text-blue-600 hover:underline">
+                            {{ dp.projectKey }}
+                          </a>
+                        </td>
+                        <td class="px-2 py-1">{{ joinConditions(dp.conditions) }}</td>
+                        <td class="px-2 py-1 text-right">{{ percent(dp.sprintProgress) }}</td>
+                        <td class="px-2 py-1 text-right">{{ percent(dp.completionRatio) }}</td>
+                        <td class="px-2 py-1 text-right">{{ dp.overdueCount }}</td>
+                        <td class="px-2 py-1 text-right">{{ dp.maxOverdueDays }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            }
+
+            @if (errors(d).length > 0) {
+              <div class="rounded-md border border-rose-200 bg-rose-50 p-4">
+                <h2 class="text-sm font-semibold text-rose-700 mb-2">
+                  {{ i18n.t('service_logs_detail_errors') }}
+                </h2>
+                <ul class="list-disc list-inside text-sm text-rose-700">
+                  @for (e of errors(d); track e.projectKey) {
+                    <li>
+                      <span class="font-mono">{{ e.projectKey }}</span>: {{ e.message }}
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+
             <div class="rounded-md border border-slate-200 bg-white p-4">
               <h2 class="text-sm font-semibold text-slate-700 mb-2">
                 {{ i18n.t('service_logs_detail_notes') }}
@@ -128,4 +181,38 @@ export class ServiceLogDetailPageComponent {
       return String(o);
     }
   }
+
+  delayed(d: ServiceLogDetail): DelayedEntry[] {
+    const arr = (d.notes as { delayed?: unknown }).delayed;
+    return Array.isArray(arr) ? (arr as DelayedEntry[]) : [];
+  }
+
+  errors(d: ServiceLogDetail): ErrorEntry[] {
+    const arr = (d.notes as { errors?: unknown }).errors;
+    return Array.isArray(arr) ? (arr as ErrorEntry[]) : [];
+  }
+
+  joinConditions(conditions: ('A' | 'B')[]): string {
+    return conditions.join(' + ');
+  }
+
+  percent(v: number | null): string {
+    if (v === null || v === undefined) return '—';
+    return `${Math.round(v * 100)}%`;
+  }
+}
+
+interface DelayedEntry {
+  projectKey: string;
+  conditions: ('A' | 'B')[];
+  sprintProgress: number | null;
+  completionRatio: number | null;
+  overdueCount: number;
+  maxOverdueDays: number;
+}
+
+interface ErrorEntry {
+  projectKey: string;
+  message: string;
+  retried?: boolean;
 }

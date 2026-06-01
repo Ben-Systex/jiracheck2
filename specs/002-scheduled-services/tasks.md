@@ -141,39 +141,29 @@ description: "002-scheduled-services 任務清單（依使用者故事拆分；�
 
 ### 後端 — repository / route
 
-- [ ] T045 [P] [US3] 實作 `backend/src/db/repositories/project-check-lists.ts`：interface + `list` / `add(projectKey, addedBy, note?)` / `remove(id)` / `getByProjectKey(key)`。
-- [ ] T046 [P] [US3] Contract spec 同目錄 `.spec.ts`：CRUD round-trip + UNIQUE 衝突；4 cases。
-- [ ] T047 [US3] 實作 `backend/src/routes/project-check-lists.ts`：`GET` / `POST` / `DELETE`；POST 對既存 projectKey 回 409 `messageKey=project_check_list_conflict`。
-- [ ] T048 [P] [US3] Contract spec `backend/tests/contract/project-check-lists.spec.ts`：4 endpoints × happy + error；含 admin guard、CSRF（POST/DELETE）共 8 cases。
+- [X] T045 [P] [US3] project-check-lists repo（list/add/remove/getByProjectKey/listProjectKeys）。
+- [X] T046 [P] [US3] project-check-lists.spec.ts（10 cases）。
+- [X] T047 [US3] routes/project-check-lists.ts: GET / POST（409 conflict） / DELETE；全 admin-only + CSRF。
+- [X] T048 [P] [US3] project-check-lists contract spec（9 cases，含 admin guard / 409 / 壞 projectKey）。
 
 ### 後端 — CHKPROJ 實作
 
-- [ ] T049 [US3] 實作 `backend/src/jobs/services/chkproj.ts`：export `chkproj({ session, repos }): RegisteredService`；流程：
-   1. 讀 `project-check-lists` → projects
-   2. 若空 → 寫 `result=skipped, summary=專案檢查清單為空` + 退出（FR-023）
-   3. for each projectKey（concurrency ≤ 5）：用既有 `services/jira/projects.getProject` / `searchIssues` 取得 sprint info + open overdue issues
-   4. 走純函式 `evaluateDelay(input)` → 取得 `DelayEvaluation`
-   5. 對個別專案失敗（404 / 403）走 1 次 retry（30s）；最終仍失敗則記在 `notes.errors[]`，整體 result 升級為 `partial_failure`
-   6. summary 中文呈現「N 個專案，X 個延遲、Y 個正常、Z 個錯誤」；notes 含 `rule_version='rule-v1'` + `delayed[]` + `errors[]`
-- [ ] T050 [P] [US3] Unit spec `backend/src/jobs/services/chkproj.spec.ts` 對純函式 `evaluateDelay`：A only / B only / A∩B / 都不符 / 邊界（Sprint 剛過半 / SP 剛好 50% / Due Date 剛逾期 3 天）/ 空 issues / 無 sprint；10 cases。
-- [ ] T051 [P] [US3] Integration spec `backend/tests/integration/chkproj.spec.ts`：mock mcp-atlassian session + in-memory repos；驗整批執行 / 部分失敗 / 清單為空 / retry；**加 SC-004 案例：50 個 mock projects + 各 search_issues 立即回 mock issues，斷言整批 `runService` 完成時間 < 5 分鐘（用 `Date.now()` diff，mock 模式下實際應 < 1 秒）**；7 cases。
-- [ ] T052 [US3] 將 `chkproj` 註冊到 `server.ts` service registry 中取代 stub。
+- [X] T049 [US3] services/chkproj.ts: rule-v1 純函式 evaluateDelay（A or B）+ runService 整合（concurrency 5 + retry 1 次 30s）+ DelayedNoteEntry / ErrorNoteEntry types。
+- [X] T050 [P] [US3] chkproj.spec.ts unit: 15 cases（rule-v1 各邊界 + service 全成功 / 部分失敗 / 50 projects SC-004 timing）。
+- [X] T051 [P] [US3] chkproj integration spec: 4 cases（空清單 / 1 延遲 + metrics / 部分失敗 / SC-004 50 projects < 5 min）。
+- [X] T052 [US3] server.ts 註冊 createChkprojService 取代 stub；新增 services/jira/chkproj-fetcher.ts 對 mcp-atlassian。
 
 ### 前端 — feature
 
-- [ ] T053 [P] [US3] 實作 `frontend/src/app/features/project-check-lists/project-check-lists-api.service.ts`：list / add / remove。
-- [ ] T054 [US3] 實作 `frontend/src/app/features/project-check-lists/project-check-lists.page.ts`：表格 + 新增 input（projectKey + 可選 note）+ 移除按鈕（含確認對話框）+ 載入 / 空 / 錯誤狀態。
-- [ ] T055 [US3] 更新 `frontend/src/app/app.routes.ts` 加 `/project-check-lists` + AdminGuard；shell 側欄加項目（`nav_project_check_lists`）。
-- [ ] T056 [P] [US3] 擴充 `frontend/src/app/features/service-logs/service-log-detail.page.ts`：對 CHKPROJ 結果，把 `notes.delayed[]` 以友善表格呈現（projectKey 連結到 `/dashboard/projects/{key}`、conditions chip、實際數據如 sprint progress / overdue count / max days）；對 CHKISSUE 結果則處理 with_issues / without_issues / empty_streak。
-- [ ] T057 [P] [US3] Unit spec `frontend/src/app/features/project-check-lists/project-check-lists.page.spec.ts`：新增 + 重複錯誤訊息 + 移除確認；5 cases。
+- [X] T053 [P] [US3] project-check-lists-api.service.ts。
+- [X] T054 [US3] project-check-lists.page.ts（表格 + 新增 form + 移除確認 + 409 衝突提示 + 載入/空/錯誤態）。
+- [X] T055 [US3] app.routes.ts + shell.component 加 /project-check-lists（admin only）。
+- [X] T056 [P] [US3] service-log-detail.page 擴充對 CHKPROJ notes.delayed[] 友善表格 + errors[] rose 警示框；project 連結到 /dashboard。
+- [X] T057 [P] [US3] project-check-lists.page.spec.ts（5 cases：load / add / 409 / error / 空 key）。
 
 ### E2E
 
-- [ ] T058 [P] [US3] E2E spec `frontend/e2e/specs/us3-chkproj.spec.ts`：
-   1. admin 登入；新增清單 [PROJ-A, PROJ-B]
-   2. 在 `/schedules` 建立 CHKPROJ 每分鐘排程 → 等 70s → 進 `/service-logs` 找到一筆
-   3. 點進詳細頁驗 `rule_version=rule-v1` 與 delayed[] 內容
-   4. 含 axe a11y
+- [ ] T058 [P] [US3] E2E spec us3-chkproj.spec.ts（延後至 Phase 7 統一處理）。
 
 **Checkpoint**: US3 完整可演示——清單維護 + CHKPROJ 自動 / 手動觸發 + ServiceLog 有實質內容。
 

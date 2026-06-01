@@ -76,6 +76,15 @@ export const routes: Routes = [
           ),
         data: { titleKey: 'nav_service_logs' },
       },
+      {
+        path: 'project-check-lists',
+        canActivate: [adminGuard],
+        loadComponent: () =>
+          import('./features/project-check-lists/project-check-lists.page').then(
+            (m) => m.ProjectCheckListsPageComponent,
+          ),
+        data: { titleKey: 'nav_project_check_lists' },
+      },
     ],
   },
   { path: '**', redirectTo: '' },

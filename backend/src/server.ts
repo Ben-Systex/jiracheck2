@@ -10,8 +10,11 @@ import type { NlqDeps } from './routes/nlq';
 // 002-scheduled-services
 import { createScheduleConfigsRepo } from './db/repositories/schedule-configs';
 import { createServiceLogsRepo } from './db/repositories/service-logs';
+import { createProjectCheckListsRepo } from './db/repositories/project-check-lists';
 import { Scheduler } from './jobs/scheduler';
-import { stubChkproj, stubChkissue } from './jobs/services/stub';
+import { stubChkissue } from './jobs/services/stub';
+import { createChkprojService } from './jobs/services/chkproj';
+import { fetchProjectForChkproj } from './services/jira/chkproj-fetcher';
 import type { ServiceRegistry } from './jobs/services/types';
 
 const log = getLogger();
@@ -47,11 +50,16 @@ async function buildNlqDeps(): Promise<NlqDeps | undefined> {
   }
 }
 
-// 啟動 scheduler；CHKPROJ / CHKISSUE 暫用 stub（Phase 5 / 6 將取代）
+// 啟動 scheduler；CHKPROJ 已實作（Phase 5）；CHKISSUE 暫用 stub（Phase 6 取代）
 const scheduleConfigsRepo = createScheduleConfigsRepo(getPool());
 const serviceLogsRepo = createServiceLogsRepo(getPool());
+const projectCheckListsRepo = createProjectCheckListsRepo(getPool());
+const chkprojService = createChkprojService({
+  projectCheckListsRepo,
+  fetchProject: fetchProjectForChkproj,
+});
 const services: ServiceRegistry = {
-  CHKPROJ: stubChkproj,
+  CHKPROJ: chkprojService,
   CHKISSUE: stubChkissue,
 };
 const scheduler = new Scheduler({
@@ -86,6 +94,9 @@ void (async () => {
     ...(nlqDeps ? { nlqDeps } : {}),
     serviceLogsDeps: {
       repo: serviceLogsRepo,
+    },
+    projectCheckListsDeps: {
+      repo: projectCheckListsRepo,
     },
     schedulesDeps: {
       runnerDeps: {
