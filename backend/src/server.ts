@@ -11,9 +11,10 @@ import type { NlqDeps } from './routes/nlq';
 import { createScheduleConfigsRepo } from './db/repositories/schedule-configs';
 import { createServiceLogsRepo } from './db/repositories/service-logs';
 import { createProjectCheckListsRepo } from './db/repositories/project-check-lists';
+import { createProjectIssueSnapshotsRepo } from './db/repositories/project-issue-snapshots';
 import { Scheduler } from './jobs/scheduler';
-import { stubChkissue } from './jobs/services/stub';
 import { createChkprojService } from './jobs/services/chkproj';
+import { createChkissueService } from './jobs/services/chkissue';
 import { fetchProjectForChkproj } from './services/jira/chkproj-fetcher';
 import type { ServiceRegistry } from './jobs/services/types';
 
@@ -50,17 +51,21 @@ async function buildNlqDeps(): Promise<NlqDeps | undefined> {
   }
 }
 
-// 啟動 scheduler；CHKPROJ 已實作（Phase 5）；CHKISSUE 暫用 stub（Phase 6 取代）
+// 啟動 scheduler；CHKPROJ 已實作（Phase 5）；CHKISSUE 已實作（Phase 6）
 const scheduleConfigsRepo = createScheduleConfigsRepo(getPool());
 const serviceLogsRepo = createServiceLogsRepo(getPool());
 const projectCheckListsRepo = createProjectCheckListsRepo(getPool());
+const projectIssueSnapshotsRepo = createProjectIssueSnapshotsRepo(getPool());
 const chkprojService = createChkprojService({
   projectCheckListsRepo,
   fetchProject: fetchProjectForChkproj,
 });
+const chkissueService = createChkissueService({
+  snapshotsRepo: projectIssueSnapshotsRepo,
+});
 const services: ServiceRegistry = {
   CHKPROJ: chkprojService,
-  CHKISSUE: stubChkissue,
+  CHKISSUE: chkissueService,
 };
 const scheduler = new Scheduler({
   pool: getPool(),

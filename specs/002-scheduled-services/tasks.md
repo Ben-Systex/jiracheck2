@@ -177,21 +177,15 @@ description: "002-scheduled-services 任務清單（依使用者故事拆分；�
 
 ### 後端
 
-- [ ] T059 [P] [US4] 實作 `backend/src/db/repositories/project-issue-snapshots.ts`：`insertBatch({ serviceLogId, snapshots })` / `getStreakAt(projectKey, asOf, maxN): number`（從 snapshot 表往回數連續 false 的次數）/ `pruneOlderThanDays(days)`。
-- [ ] T060 [P] [US4] Contract spec 同 `.spec.ts`：insertBatch + getStreakAt 含邊界（剛好 N、N+1、被 has_issues=true 打斷）；6 cases。
-- [ ] T061 [US4] 實作 `backend/src/jobs/services/chkissue.ts`：
-   1. 透過 mcp `list_projects` 取所有可見專案（concurrency ≤ 5）
-   2. 對每專案以 `search_issues` JQL `project = {key}` maxResults=1 判斷 issue_count > 0
-   3. 寫入 snapshots
-   4. 對每無 issue 的專案查 `getStreakAt` ≥ `CHKISSUE_EMPTY_STREAK_THRESHOLD` → 加入 `notes.empty_streak[]`
-   5. summary：「總 N 個、有任務 X、無任務 Y、其中 Z 個已連續 K 次無任務」
-   6. 處理單一專案 API 失敗 → retry 1 次 → 失敗則 partial_failure（FR-033）
-- [ ] T062 [P] [US4] Integration spec `backend/tests/integration/chkissue.spec.ts`：mock 5 projects（3 有 issue / 2 無）+ 4 次 snapshot 連續 false 觸發 empty_streak；含 partial_failure 路徑；**加 SC-005 案例：200 mock projects 整批掃描完成時間 < 10 分鐘**；6 cases。
-- [ ] T063 [US4] 將 `chkissue` 註冊到 `server.ts` service registry 中取代 stub。
+- [X] T059 [P] [US4] project-issue-snapshots repo（insertBatch / getStreakAt / pruneOlderThanDays）。
+- [X] T060 [P] [US4] project-issue-snapshots.spec.ts（10 cases，含 streak 邊界 / maxN clamp / 空 snapshots batch）。
+- [X] T061 [US4] services/chkissue.ts: listProjects → countIssues per project (concurrency 5 + retry 1 次) → snapshots.insertBatch → getStreakAt → notes.empty_streak[]；threshold 從 env CHKISSUE_EMPTY_STREAK_THRESHOLD 取（預設 4）。
+- [X] T062 [P] [US4] chkissue integration spec（5 cases：分組 / streak 觸發 / partial_failure / 空可見專案 / SC-005 200 projects < 10 min）。
+- [X] T063 [US4] server.ts 註冊 createChkissueService 取代 stub；刪除 stub.ts 死碼。
 
 ### E2E
 
-- [ ] T064 [P] [US4] E2E spec `frontend/e2e/specs/us4-chkissue.spec.ts`：admin 登入 → 建立 CHKISSUE 每分鐘排程 → 等 70s → 進詳細頁驗 with_issues[] / without_issues[]；含 axe a11y。
+- [ ] T064 [P] [US4] E2E spec us4-chkissue.spec.ts（延後至 Phase 7 統一處理）。
 
 **Checkpoint**: US4 完整可演示——CHKISSUE 統計 + empty_streak 警示。
 
