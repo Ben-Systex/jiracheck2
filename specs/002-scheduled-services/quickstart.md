@@ -175,13 +175,23 @@ docker compose -f ops/docker-compose.yml --env-file ops/.env exec postgres \
 ## 10. 觀測性 metrics 驗證
 
 ```bash
+# 若 METRICS_TOKEN 已設，需帶 Bearer
 curl -s http://localhost:8080/api/v1/metrics | grep -E "scheduled_service|schedule_configs"
+
+# 或：
+curl -s -H "Authorization: Bearer $METRICS_TOKEN" \
+  http://localhost:8080/api/v1/metrics | grep -E "scheduled_service|schedule_configs"
 ```
 
 預期出現：
 - `scheduled_service_total{service_id="CHKPROJ",result="success"} N`
+- `scheduled_service_total{service_id="CHKISSUE",result="success"} N`
 - `scheduled_service_duration_seconds_count{service_id="CHKPROJ"} N`
+- `scheduled_service_duration_seconds_bucket{service_id="CHKPROJ",le="..."} N`
 - `schedule_configs_enabled_count N`
+- `scheduled_service_active_count`（執行中為 ≥ 1，閒置為 0）
+
+> Prometheus alert rule 樣板見 [`ops/prometheus/alerts.example.yml`](../../ops/prometheus/alerts.example.yml)（含「連續 3 次失敗」「6h 內無觸發」「p95 延遲 > 5 分鐘」等）。
 
 ---
 

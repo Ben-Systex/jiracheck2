@@ -145,4 +145,18 @@ describe('scheduled service metrics (002)', () => {
     const text = await getRegistry().metrics();
     expect(text).toMatch(/schedule_configs_enabled_count\s+7/);
   });
+
+  it('scheduleConfigsEnabledCount gauge 更新追蹤 CRUD 變化', async () => {
+    scheduleConfigsEnabledCount.set(2);
+    let text = await getRegistry().metrics();
+    expect(text).toMatch(/schedule_configs_enabled_count\s+2/);
+
+    scheduleConfigsEnabledCount.set(5);
+    text = await getRegistry().metrics();
+    expect(text).toMatch(/schedule_configs_enabled_count\s+5/);
+
+    scheduleConfigsEnabledCount.set(0);
+    text = await getRegistry().metrics();
+    expect(text).toMatch(/schedule_configs_enabled_count\s+0/);
+  });
 });

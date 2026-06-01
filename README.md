@@ -1,7 +1,16 @@
 # Jira 小幫手 (jiracheck2)
 
-以自然語言查 Jira、看儀表板、查人員工作狀況、整批更新 issue 的內部工具。
+以自然語言查 Jira、看儀表板、查人員工作狀況、整批更新 issue、**並定期自動檢查專案延遲**的內部工具。
 所有 user-facing 文字為繁體中文（台灣用語）。
+
+## 功能
+
+- **001 — 主功能**：登入、專案儀表板、自然語言查詢、人員工作狀況、批次更新 issue
+- **002 — 定時排程服務**（admin only）：
+  - **排程設定**：cron / 每日 / 每週 / 每月，可手動觸發，scheduler 自動執行
+  - **CHKPROJ**：定期檢查「專案檢查清單」中的專案是否延遲（rule-v1：Sprint 過半 SP<50% 或任一未完成任務 Due Date 逾期 ≥ 3 天）
+  - **CHKISSUE**：盤點所有可見專案的「有任務 / 無任務」分布，連續 N 次無任務時警示
+  - **ServiceLogs**：所有執行紀錄保留 90 天，可過濾 / 詳細頁 / CSV 匯出
 
 ## 子系統
 
@@ -9,9 +18,11 @@
 |--------|------|------|
 | Frontend | `frontend/` | Angular 19 (standalone) + Tailwind CSS 3 + ng2-charts 6 |
 | Backend | `backend/` | Express 4 + TypeScript 5.7（Node 20+） |
+| Scheduler (002) | `backend/src/jobs/` | node-cron 4 + cron-parser 5 + PG advisory lock |
 | MCP Server | external | `ghcr.io/sooperset/mcp-atlassian`（SSE transport） |
 | LLM | external | Anthropic Claude（sonnet-4-6 / haiku-4-5 fallback） |
 | Storage | `ops/docker-compose.yml` | PostgreSQL 16 |
+| Observability | — | Prometheus `/api/v1/metrics` + OpenTelemetry trace API |
 | Deploy | `ops/` | Docker Compose |
 
 ## 架構
@@ -79,7 +90,11 @@ cd frontend && npm install && npm start
 
 - [`docs/oauth-setup.md`](docs/oauth-setup.md) — Atlassian OAuth 2.0 註冊步驟（建立 token）
 - [`docs/anthropic-setup.md`](docs/anthropic-setup.md) — Anthropic API key 取得與 NLQ 啟用
-- `specs/001-jira-assistant/contracts/api.openapi.yaml` — REST API 契約
+- [`docs/admin-setup.md`](docs/admin-setup.md) — 設定 `ADMIN_ACCOUNT_IDS` 啟用 002 排程服務功能
+- [`ops/prometheus/alerts.example.yml`](ops/prometheus/alerts.example.yml) — Prometheus alert rule 樣板（SC-007）
+- `specs/001-jira-assistant/contracts/api.openapi.yaml` — REST API 契約（001）
+- `specs/002-scheduled-services/contracts/api.openapi.yaml` — 排程服務 REST API 契約（002）
+- [`specs/002-scheduled-services/quickstart.md`](specs/002-scheduled-services/quickstart.md) — 排程服務 12 步驗證流程
 
 ## 安全
 

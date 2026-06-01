@@ -15,6 +15,7 @@ import { createProjectIssueSnapshotsRepo } from './db/repositories/project-issue
 import { Scheduler } from './jobs/scheduler';
 import { createChkprojService } from './jobs/services/chkproj';
 import { createChkissueService } from './jobs/services/chkissue';
+import { scheduleCleanup } from './jobs/cleanup';
 import { fetchProjectForChkproj } from './services/jira/chkproj-fetcher';
 import type { ServiceRegistry } from './jobs/services/types';
 
@@ -141,10 +142,19 @@ void (async () => {
   });
 })();
 
+// 每日 03:00 cleanup（T065 + T096：service_logs / bulk_ops / query_history / sessions / snapshots）
+const stopCleanup = scheduleCleanup({
+  pool: getPool(),
+  log,
+  serviceLogsRepo,
+  snapshotsRepo: projectIssueSnapshotsRepo,
+});
+
 // 優雅關閉
 async function shutdown(): Promise<void> {
   log.info('[backend] shutting down');
   try {
+    stopCleanup();
     await scheduler.stop();
   } catch (err) {
     log.warn({ err }, '[scheduler] stop failed');

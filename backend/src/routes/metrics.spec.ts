@@ -7,6 +7,7 @@ import {
   __resetMetricsForTesting,
   initMetrics,
   httpRequestsTotal,
+  scheduledServiceTotal,
 } from '../lib/metrics';
 
 function buildApp(): express.Express {
@@ -64,5 +65,14 @@ describe('GET /metrics', () => {
       .get('/api/v1/metrics')
       .set('Authorization', 'Basic abc');
     expect(res.status).toBe(401);
+  });
+
+  it('CHKPROJ + CHKISSUE 各 inc 後 endpoint 文字含對應 metric', async () => {
+    scheduledServiceTotal.inc({ service_id: 'CHKPROJ', result: 'success' }, 2);
+    scheduledServiceTotal.inc({ service_id: 'CHKISSUE', result: 'partial_failure' }, 1);
+    const res = await request(buildApp()).get('/api/v1/metrics');
+    expect(res.status).toBe(200);
+    expect(res.text).toMatch(/scheduled_service_total\{[^}]*service_id="CHKPROJ"[^}]*result="success"\}\s+2/);
+    expect(res.text).toMatch(/scheduled_service_total\{[^}]*service_id="CHKISSUE"[^}]*result="partial_failure"\}\s+1/);
   });
 });

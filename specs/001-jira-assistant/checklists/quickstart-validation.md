@@ -188,4 +188,7 @@ docker compose -f ops/docker-compose.yml --env-file ops/.env down -v
 - [ ] `ops/.env` 已注入 `ADMIN_ACCOUNT_IDS`（至少一個 accountId）
 - [ ] `/api/v1/me` 回傳含 `isAdmin: true`（對白名單帳號）
 - [ ] `/api/v1/metrics` 含 `scheduled_service_total` / `scheduled_service_duration_seconds` 等系列指標
+- [ ] **附錄 6 metrics 驗證項額外含 `scheduled_service_total{service_id="CHKPROJ",result="..."}` 計數**（在跑完 quickstart step 4–8 後該 counter ≥ 1）
+- [ ] cleanup 排程 03:00 啟動（檢查 backend log 啟動訊息含 `[cleanup]`；雖然 cleanup 預設一日跑一次無法當下驗證，但 server.ts 應有對應 `scheduleCleanup` 呼叫）
+- [ ] **`scheduledServiceTotal` 對 CHKPROJ 與 CHKISSUE 兩個 service_id 各有計數**（跑完 002 quickstart 之 step 5–8 後）
 - [ ] 002 feature 自身另有 `specs/002-scheduled-services/checklists/quickstart-validation.md` 之 12 步驗證流程
